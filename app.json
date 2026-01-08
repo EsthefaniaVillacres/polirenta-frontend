@@ -1,0 +1,82 @@
+{
+  "expo": {
+    "name": "app-arriendos",
+    "slug": "app-arriendos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "apparriendos",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.diana25.apparriendos",
+      "config": {
+        "googleMapsApiKey": {}
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "INTERNET",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "android.permission.WAKE_LOCK"
+      ],
+      "package": "com.diana25.apparriendos",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "config": {
+        "googleMaps": {
+          "apiKey": null
+        }
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#ffffff",
+          "mode": "production"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "01bda87b-865f-4a06-bada-d1a1a97dd76c"
+      }
+    }
+  }
+}
