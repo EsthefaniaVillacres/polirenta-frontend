@@ -41,7 +41,7 @@ export default function LoginModalContent({
   const buildLoginPayload = () => JSON.stringify({ email, password });
 
   const sendLoginRequest = async (payload) => {
-    const response = await fetch("http://192.168.0.103:3000/api/auth/login", {
+    const response = await fetch("https://backend-arriendos-production.up.railway.app/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payload,

@@ -171,7 +171,7 @@ export default function RegisterModalContent({ onClose, onOpenLogin }) {
   };
 
   const sendRegisterRequest = async (payload) => {
-    const response = await fetch("http://192.168.0.103:3000/api/auth/register", {
+    const response = await fetch("https://backend-arriendos-production.up.railway.app/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: payload,

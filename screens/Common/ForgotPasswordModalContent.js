@@ -37,7 +37,7 @@ export default function ForgotPasswordModalContent({ onClose, onOpenLogin }) {
 
   const sendResetRequest = async (payload) => {
     const response = await fetch(
-      "http://192.168.0.103:3000/api/auth/reset-password",
+      "https://backend-arriendos-production.up.railway.app/api/auth/reset-password",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
