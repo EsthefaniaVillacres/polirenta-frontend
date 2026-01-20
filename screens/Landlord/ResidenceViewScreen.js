@@ -73,7 +73,7 @@ const ResidenceViewScreen = ({ navigation }) => {
     
     try {
       const response = await axios.get(
-        `http://192.168.1.3:3000/api/auth/residences?userId=${user?.id}`
+        `https://backend-arriendos-production.up.railway.app/api/auth/residences?userId=${user?.id}`
       );
       
       const newResidences = response.data.length > 0 ? response.data : [];
@@ -241,7 +241,7 @@ const ResidenceViewScreen = ({ navigation }) => {
   const deleteResidence = async (residenceId) => {
     try {
       const response = await axios.delete(
-        `http://192.168.1.3:3000/api/auth/residences/${residenceId}`
+        `https://backend-arriendos-production.up.railway.app/api/auth/residences/${residenceId}`
       );
       if (response.status === 200) {
        
@@ -393,7 +393,7 @@ const ResidenceViewScreen = ({ navigation }) => {
                         {(() => {
                           const fotosArray = JSON.parse(residence.fotos || "[]");
                           const imageUrls = fotosArray.map(
-                            (foto) => `http://192.168.1.3:3000/images/${foto}`
+                            (foto) => `https://backend-arriendos-production.up.railway.app/images/${foto}`
                           );
                           const currentIndex = imageIndices[index] || 0;
 

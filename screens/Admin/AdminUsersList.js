@@ -37,7 +37,7 @@ export default function AdminUsersList({ navigation }) {
   const cargarUsuarios = async () => {
     try {
       const response = await axios.get(
-        "http://192.168.1.3:3000/api/admin/usuarios"
+        "https://backend-arriendos-production.up.railway.app/api/admin/usuarios"
       );
       setUsers(response.data);
       setFilteredUsers(response.data);
@@ -163,7 +163,7 @@ export default function AdminUsersList({ navigation }) {
                 ]}
                 onPress={async () => {
                   await axios.put(
-                    `http://192.168.1.3:3000/api/admin/usuarios/${user.id_usuario}/estado`,
+                    `https://backend-arriendos-production.up.railway.app/api/admin/usuarios/${user.id_usuario}/estado`,
                     { estado: user.estado === "activo" ? "inactivo" : "activo" }
                   );
                   cargarUsuarios();

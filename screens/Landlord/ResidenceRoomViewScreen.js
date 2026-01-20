@@ -84,7 +84,7 @@ const ResidenceRoomViewScreen = ({ navigation, route }) => {
     setLoading(true);
     try {
       const response = await axios.get(
-        `http://192.168.1.3:3000/api/auth/rooms/by-residence/${residenceId}`
+        `https://backend-arriendos-production.up.railway.app/api/auth/rooms/by-residence/${residenceId}`
       );
       setRooms(response.data || []);
     } catch (error) {
@@ -118,7 +118,7 @@ const ResidenceRoomViewScreen = ({ navigation, route }) => {
   const deleteRoom = async (roomId) => {
     try {
       const response = await axios.delete(
-        `http://192.168.1.3:3000/api/auth/rooms/${roomId}`
+        `https://backend-arriendos-production.up.railway.app/api/auth/rooms/${roomId}`
       );
       if (response.status === 200) {
         setRooms((prev) =>
@@ -383,7 +383,7 @@ const ResidenceRoomViewScreen = ({ navigation, route }) => {
                       {(() => {
                         const fotosArray = JSON.parse(room.fotos || "[]");
                         const imageUrls = fotosArray.map(
-                          (foto) => `http://192.168.1.3:3000/images/${foto}`
+                          (foto) => `https://backend-arriendos-production.up.railway.app/images/${foto}`
                         );
                         const currentIndex = imageIndices[index] || 0;
 

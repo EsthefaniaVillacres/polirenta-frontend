@@ -14,7 +14,7 @@ import {
 import Header from "../../components/Header";
 import axios from "axios";
 
-const API_BASE = "http://192.168.1.3:3000";
+const API_BASE = "https://backend-arriendos-production.up.railway.app";
 
 export default function AdminContractsList({ navigation }) {
   const [contracts, setContracts] = useState([]);

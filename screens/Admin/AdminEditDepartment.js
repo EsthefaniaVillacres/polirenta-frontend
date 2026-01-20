@@ -133,7 +133,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
     const fetchDepartmentData = async () => {
       try {
         const response = await axios.get(
-          `http://192.168.1.3:3000/api/auth/departments/${departmentId}`
+          `https://backend-arriendos-production.up.railway.app/api/auth/departments/${departmentId}`
         );
         const departmentData = Array.isArray(response.data)
           ? response.data[0]
@@ -216,7 +216,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
 
           if (fotosArray.length > 0) {
             const formattedImages = fotosArray.map((nombre) => ({
-              uri: `http://192.168.1.3:3000/images/${nombre}`,
+              uri: `https://backend-arriendos-production.up.railway.app/images/${nombre}`,
               name: nombre,
               isNew: false,
             }));
@@ -355,7 +355,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
   };
   const sendUpdateRequest = async (formData) => {
     const response = await fetch(
-      `http://192.168.1.3:3000/api/auth/departments/${departmentId}`,
+      `https://backend-arriendos-production.up.railway.app/api/auth/departments/${departmentId}`,
       {
         method: "PUT",
         headers: { Accept: "application/json" },
@@ -413,7 +413,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
       return;
     }
 
-    const url = `http://192.168.1.3:3000/geocode?q=${encodeURIComponent(
+    const url = `https://backend-arriendos-production.up.railway.app/geocode?q=${encodeURIComponent(
       text + ", Riobamba, Ecuador"
     )}`;
 

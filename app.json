@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "app-arriendos",
-    "slug": "app-arriendos",
+    "slug": "tesis-arriendos",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -75,8 +75,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "01bda87b-865f-4a06-bada-d1a1a97dd76c"
+        "projectId": "7990d6b2-a627-455b-a3ff-b0eaf78ad36f"
       }
-    }
+    },
+    "owner": "esthefaniav_20"
   }
 }

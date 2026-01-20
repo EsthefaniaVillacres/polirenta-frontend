@@ -72,7 +72,7 @@ const RegisterRoomScreen = ({ navigation, route }) => {
         // Si no llegan por route.params, busca desde la API
         if (!totalResidencia || !totalHabitaciones) {
           const res = await fetch(
-            `http://192.168.1.3:3000/api/residencias/${idPropiedad}`
+            `https://backend-arriendos-production.up.railway.app/api/residencias/${idPropiedad}`
           );
           const data = await res.json();
 
@@ -307,8 +307,8 @@ const RegisterRoomScreen = ({ navigation, route }) => {
       if (capacidad > capacidadDisponible) {
         alert(
           `Esta residencia solo tiene capacidad para ${capacidad_total} personas.\n` +
-            `Ya se han asignado ${capacidad_actual} personas.\n` +
-            `Solo puedes agregar hasta ${capacidadDisponible} persona(s) en esta habitación.`
+          `Ya se han asignado ${capacidad_actual} personas.\n` +
+          `Solo puedes agregar hasta ${capacidadDisponible} persona(s) en esta habitación.`
         );
         return;
       }
@@ -321,7 +321,7 @@ const RegisterRoomScreen = ({ navigation, route }) => {
       if (
         esUltimaHabitacion &&
         sumaFinal !==
-          parseFloat(parseFloat(precio_total_residencia || "0").toFixed(2))
+        parseFloat(parseFloat(precio_total_residencia || "0").toFixed(2))
       ) {
         alert(
           `La suma total de precios no coincide con el valor de la residencia. Debe ser exactamente $${precio_total_residencia}. .`
@@ -464,12 +464,14 @@ const RegisterRoomScreen = ({ navigation, route }) => {
             size: compressedFile.size,
           });
 
-          formData.append("fotos", file);
+          formData.append("fotos", compressedFile);
         } else {
           // Para iOS / Android
           const match = /\.(\w+)$/.exec(filename ?? "");
-          const type = match ? `image/${match[1]}` : `image/png`;
+          let ext = match?.[1]?.toLowerCase() || "jpg";
+          if (ext === "jpg") ext = "jpeg";
 
+          const type = `image/${ext}`;
           formData.append("fotos", {
             uri,
             name: filename,
@@ -478,7 +480,7 @@ const RegisterRoomScreen = ({ navigation, route }) => {
         }
       }
       const response = await fetch(
-        "http://192.168.1.3:3000/api/auth/register-room",
+        "https://backend-arriendos-production.up.railway.app/api/auth/register-room",
         {
           method: "POST",
           body: formData,
@@ -494,8 +496,7 @@ const RegisterRoomScreen = ({ navigation, route }) => {
     } catch (error) {
       console.error("Error al registrar cuarto:", error);
       alert(
-        `Error al registrar cuarto: ${
-          error.message || "Inténtalo de nuevo más tarde"
+        `Error al registrar cuarto: ${error.message || "Inténtalo de nuevo más tarde"
         }`
       );
     }
@@ -565,15 +566,15 @@ const RegisterRoomScreen = ({ navigation, route }) => {
           showsVerticalScrollIndicator={true}
         >
           {/* ENCABEZADO */}
-    <View style={{
-      height: 70,
-      width: "100%",
-      flexDirection: "row"
-    }}>
-      <View style={{ flex: 1, backgroundColor: "#B80000" }} />   
-      <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
-      <View style={{ flex: 1, backgroundColor: "#006400" }} />
-    </View>
+          <View style={{
+            height: 70,
+            width: "100%",
+            flexDirection: "row"
+          }}>
+            <View style={{ flex: 1, backgroundColor: "#B80000" }} />
+            <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
+            <View style={{ flex: 1, backgroundColor: "#006400" }} />
+          </View>
           <View style={styles.container}>
             <Header isLoggedIn={true} />
 

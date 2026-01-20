@@ -56,7 +56,7 @@ const RentalViewScreen = ({ navigation, route }) => {
     const checkRentalStatus = async () => {
       try {
         const response = await axios.get(
-          "http://192.168.1.3:3000/api/solicitudes/check",
+          "https://backend-arriendos-production.up.railway.app/api/solicitudes/check",
           {
             params: {
               id_estudiante: user.id,
@@ -77,7 +77,7 @@ const RentalViewScreen = ({ navigation, route }) => {
 
   const fotosArray = fotos ? JSON.parse(fotos) : [];
   const imageUrls = fotosArray.map(
-    (foto) => `http://192.168.1.3:3000/images/${foto}`
+    (foto) => `https://backend-arriendos-production.up.railway.app/images/${foto}`
   );
 
   const handleRentalRequest = async () => {
@@ -88,7 +88,7 @@ const RentalViewScreen = ({ navigation, route }) => {
     try {
 
       const requestResponse = await axios.post(
-        "http://192.168.1.3:3000/api/solicitudes",
+        "https://backend-arriendos-production.up.railway.app/api/solicitudes",
         {
           id_estudiante: user.id,
           id_propiedad: route.params.departamentoId,
@@ -98,7 +98,7 @@ const RentalViewScreen = ({ navigation, route }) => {
       if (requestResponse.status === 201) {
 
         const propertyResponse = await axios.get(
-          `http://192.168.1.3:3000/api/auth/properties/${route.params.departamentoId}`
+          `https://backend-arriendos-production.up.railway.app/api/auth/properties/${route.params.departamentoId}`
         );
 
         const propertyData = propertyResponse.data;

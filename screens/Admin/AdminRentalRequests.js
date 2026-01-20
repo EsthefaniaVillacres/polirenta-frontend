@@ -32,7 +32,7 @@ const AdminRentalRequests = ({ navigation }) => {
       if (user?.id) {
         try {
           const response = await axios.get(
-            "http://192.168.1.3:3000/api/notifications/requests/",
+            "https://backend-arriendos-production.up.railway.app/api/notifications/requests/",
             {
               params: { ownerId: user.id },
             }
@@ -73,7 +73,7 @@ const AdminRentalRequests = ({ navigation }) => {
 
   const handleDelete = async (user) => {
     try {
-      await axios.post("http://192.168.1.3:3000/api/notifications/reject", {
+      await axios.post("https://backend-arriendos-production.up.railway.app/api/notifications/reject", {
         tenantId: user.tenantId,
         propertyId: user.propertyId,
         roomId: user.roomId || null,
@@ -111,7 +111,7 @@ const AdminRentalRequests = ({ navigation }) => {
       const fechaInicio = new Date().toISOString().split("T")[0];
 
       const response = await axios.post(
-        "http://192.168.1.3:3000/api/auth/rentals/accept",
+        "https://backend-arriendos-production.up.railway.app/api/auth/rentals/accept",
         {
           id_estudiante: user.tenantId,
           id_propiedad: user.propertyId,

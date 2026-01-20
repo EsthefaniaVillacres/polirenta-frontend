@@ -9,7 +9,8 @@ import {
 import Header from "../../components/Header";
 import styles from "../../styles/RegisterPropertyScreenStyles";
 
-const API_URL = "http://192.168.1.3:3000";
+const API_URL = "https://backend-arriendos-production.up.railway.app";
+
 
 const ResidenceRoomsMapScreen = ({ route, navigation }) => {
   const { residenceId } = route.params;

@@ -48,7 +48,7 @@ const ContactScreen = ({ navigation, route }) => {
     const fetchPropertyDetails = async () => {
       try {
         const response = await axios.get(
-          `http://192.168.1.3:3000/api/auth/properties/${propertyId}`
+          `https://backend-arriendos-production.up.railway.app/api/auth/properties/${propertyId}`
         );
         setProperty(response.data);
       } catch (error) {
@@ -66,7 +66,7 @@ const ContactScreen = ({ navigation, route }) => {
       if (notificationId) {
         try {
           await axios.put(
-            `http://192.168.1.3:3000/api/notifications/${notificationId}/read`
+            `https://backend-arriendos-production.up.railway.app/api/notifications/${notificationId}/read`
           );
         } catch (error) {
           console.error("Error al marcar notificación como leída:", error);
@@ -76,13 +76,13 @@ const ContactScreen = ({ navigation, route }) => {
     const fetchLandlordDetails = async () => {
       try {
         const response = await axios.get(
-          `http://192.168.1.3:3000/api/auth/properties/${propertyId}`
+          `https://backend-arriendos-production.up.railway.app/api/auth/properties/${propertyId}`
         );
         const propertyData = response.data;
 
         if (propertyData?.id_propietario) {
           const userResponse = await axios.get(
-            `http://192.168.1.3:3000/api/auth/users/${propertyData.id_propietario}`
+            `https://backend-arriendos-production.up.railway.app/api/auth/users/${propertyData.id_propietario}`
           );
           const userData = userResponse.data[0];
 

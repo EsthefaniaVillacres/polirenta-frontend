@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import axios from "axios";
 
-const API_BASE = "http://192.168.1.3:3000";
+const API_BASE = "https://backend-arriendos-production.up.railway.app";
 
 export default function AdminViewContract({ navigation, route }) {
   const { id } = route?.params || {};
@@ -44,7 +44,7 @@ export default function AdminViewContract({ navigation, route }) {
     const fetchArriendo = async () => {
       try {
         const response = await axios.get(
-          `http://192.168.1.3:3000/api/auth/rentals/${id}`
+          `https://backend-arriendos-production.up.railway.app/api/auth/rentals/${id}`
         );
         console.log(" DATOS RECIBIDOS DE ARRIENDO:", response.data);
       } catch (error) {
@@ -56,7 +56,7 @@ export default function AdminViewContract({ navigation, route }) {
 
   // -------- DESCARGAR PLANTILLA --------
   const downloadTemplate = () => {
-    const url = "http://192.168.1.3:3000/api/arriendos/template";
+    const url = "https://backend-arriendos-production.up.railway.app/api/arriendos/template";
     Linking.openURL(url).catch(() =>
       Alert.alert("Error", "No se pudo abrir la plantilla.")
     );
