@@ -226,7 +226,7 @@ export default function RegisterModalContent({ onClose, onOpenLogin }) {
   useEffect(() => {
     const cargarBancos = async () => {
       try {
-        const response = await fetch("http://192.168.0.103:3000/api/bancos");
+        const response = await fetch("https://backend-arriendos-production.up.railway.app/api/bancos");
         const data = await response.json();
         setBancos(data);
         setFiltrados(data);
