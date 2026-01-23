@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useMemo } from "react";
 import {
   View,
   TextInput,
@@ -23,8 +23,10 @@ import { AuthContext } from "../../context/AuthContext";
 
 const AdminEditDepartment = ({ route, navigation }) => {
   const { user } = useContext(AuthContext);
-  console.log(user);
-  const { departmentId } = route.params;
+
+  // ✅ Protegemos params (en web a veces viene undefined si recargas)
+  const departmentId = route?.params?.departmentId;
+
   //Variables
   const [tenantType, setTenantType] = useState({
     men: false,
@@ -54,7 +56,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
     sharedDinigRoom: false,
   });
 
-  // eslint-disable-next-line no-unused-vars
   const [image, setImage] = useState(null);
 
   const [location, setLocation] = useState(null);
@@ -79,76 +80,88 @@ const AdminEditDepartment = ({ route, navigation }) => {
   const [images, setImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const imageUrls = images.map((foto) => foto.uri);
+  const imageUrls = useMemo(() => images.map((foto) => foto.uri), [images]);
 
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [imagesToDelete, setImagesToDelete] = useState([]);
+
   //Dimesiones y estilos
   const screenWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
   const fontSizeTitle = isWeb ? 40 : screenWidth * 0.12;
 
-  //
   const rentalType = ["Residencia", "Departamento"];
-  const rentalSector = ["Barrio Chino", "Puerta Principal (Pedro Vicente Maldonado)", "Puerta Intermedia (Milton Reyes)", "Puerta de Medicina (Canónico Ramos)"];
+  const rentalSector = [
+    "Barrio Chino",
+    "Puerta Principal (Pedro Vicente Maldonado)",
+    "Puerta Intermedia (Milton Reyes)",
+    "Puerta de Medicina (Canónico Ramos)",
+  ];
 
-  //Metodos
+  // ✅ Confirmación compatible Web + Android + iOS (sin romper SSR)
+  const confirmAction = async (message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
 
-  const handleDeleteImage = (index) => {
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Aceptar", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const safeAnimate = () => {
+    // LayoutAnimation en Web puede fallar / no hacer nada
+    if (Platform.OS !== "web") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+  };
+
+  const handleDeleteImage = async (index) => {
     const imageToDelete = images[index];
 
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que deseas eliminar esta imagen?"
-      );
-      if (confirmed) {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-        if (!imageToDelete.isNew) {
-          setImagesToDelete((prev) => [...prev, imageToDelete.name]);
-        }
-      }
-    } else {
-      Alert.alert(
-        "Eliminar imagen",
-        "¿Estás seguro de que deseas eliminar esta imagen?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            onPress: () => {
-              setImages((prev) => prev.filter((_, i) => i !== index));
-              if (!imageToDelete.isNew) {
-                setImagesToDelete((prev) => [...prev, imageToDelete.name]);
-              }
-            },
-            style: "destructive",
-          },
-        ]
-      );
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que deseas eliminar esta imagen?"
+    );
+
+    if (!confirmed) return;
+
+    setImages((prev) => prev.filter((_, i) => i !== index));
+
+    if (imageToDelete && !imageToDelete.isNew) {
+      setImagesToDelete((prev) => [...prev, imageToDelete.name]);
     }
   };
 
   useEffect(() => {
+    // ✅ Si no hay departmentId, no intentes cargar nada
+    if (!departmentId) return;
+
     const fetchDepartmentData = async () => {
       try {
         const response = await axios.get(
           `https://backend-arriendos-production.up.railway.app/api/auth/departments/${departmentId}`
         );
+
         const departmentData = Array.isArray(response.data)
           ? response.data[0]
           : response.data;
 
-        setPropertyTitle(departmentData.titulo);
-        setPropertyDescription(departmentData.descripcion);
-        setPropertyPrice(departmentData.precio_mensual?.toString() || "");
-        setAddress(departmentData.direccion || "");
+        setPropertyTitle(departmentData.titulo ?? "");
+        setPropertyDescription(departmentData.descripcion ?? "");
+        setPropertyPrice(departmentData.precio_mensual?.toString() ?? "");
+        setAddress(departmentData.direccion ?? "");
         setLocation({
           latitude: departmentData.latitud,
           longitude: departmentData.longitud,
         });
-        setSelectedRentalType(departmentData.tipo_arriendo);
-        setSelectedRentalSector(departmentData.sector);
+
+        setSelectedRentalType(departmentData.tipo_arriendo ?? null);
+        setSelectedRentalSector(departmentData.sector ?? null);
+
         setMenCount(departmentData.cantidad_hombres || 0);
         setWomenCount(departmentData.cantidad_mujeres || 0);
         setIndividualRoomsCount(departmentData.cantidad_habitaciones || 0);
@@ -156,7 +169,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
           departmentData.cantidad_banos_individuales || 0
         );
         setSharedBathroomsCount(departmentData.cantidad_banos_compartidos || 0);
-
         setLivingRoomsCount(departmentData.cantidad_salas || 0);
         setParkingSpotsCount(departmentData.cantidad_parqueaderos || 0);
 
@@ -176,11 +188,11 @@ const AdminEditDepartment = ({ route, navigation }) => {
           cash: pagos.includes("Efectivo"),
           deposit: pagos.includes("Depósito"),
           transfer: pagos.includes("Transferencia"),
-        }); // Comodidades
+        });
 
+        // Comodidades
         const comodidades =
           departmentData.comodidades?.split(",").map((c) => c.trim()) || [];
-
         setAmenities({
           electricShower: comodidades.includes("Decha eléctrica"),
           showerHeater: comodidades.includes("Ducha con calefón"),
@@ -202,7 +214,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
           sharedLivingRoom: convivencia.includes("Sala compartida"),
           sharedDinigRoom: convivencia.includes("Comedor compartido"),
         });
-        console.log(departmentData);
 
         if (departmentData.fotos) {
           let fotosArray = [];
@@ -220,15 +231,17 @@ const AdminEditDepartment = ({ route, navigation }) => {
               name: nombre,
               isNew: false,
             }));
+
             setImages(formattedImages);
-            setImage(formattedImages[0].uri);
+            setImage(formattedImages[0]?.uri ?? null);
           }
         }
       } catch (error) {
         console.error("Error al obtener los datos del departamento:", error);
-        alert("No se pudo cargar la información deldepartamento.");
+        alert("No se pudo cargar la información del departamento.");
       }
     };
+
     fetchDepartmentData();
   }, [departmentId]);
 
@@ -266,6 +279,14 @@ const AdminEditDepartment = ({ route, navigation }) => {
 
     return existingImagesToKeep;
   };
+
+  const getSelectedTenantType = () => {
+    if (tenantType.men && tenantType.women) return "Mixto";
+    if (tenantType.women) return "Mujer";
+    if (tenantType.men) return "Hombre";
+    return "Mixto";
+  };
+
   const prepareFormData = async (existingImagesToKeep) => {
     const formData = new FormData();
 
@@ -338,7 +359,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
 
     for (const img of images) {
       if (img.isNew) {
-        const type = img.uri.endsWith(".png") ? "image/png" : "image/jpeg";
+        const type = img.uri?.endsWith(".png") ? "image/png" : "image/jpeg";
         formData.append("fotos", {
           uri: img.uri,
           name: img.name,
@@ -353,6 +374,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
 
     return formData;
   };
+
   const sendUpdateRequest = async (formData) => {
     const response = await fetch(
       `https://backend-arriendos-production.up.railway.app/api/auth/departments/${departmentId}`,
@@ -371,6 +393,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
     alert("Departamento actualizado con éxito!");
     navigation.navigate("AdminDepartmentList");
   };
+
   const handleEditProperty = async () => {
     try {
       validateInputs();
@@ -420,7 +443,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
     try {
       const response = await axios.get(url);
 
-      // Coordenadas aproximadas del cantón Riobamba
       const minLat = -1.8;
       const maxLat = -1.5;
       const minLon = -78.8;
@@ -441,13 +463,8 @@ const AdminEditDepartment = ({ route, navigation }) => {
   const toggleTenantType = (key) => {
     setTenantType({ men: false, women: false, mixed: false, [key]: true });
 
-    // Resetear los contadores según el tipo seleccionado
-    if (key === "men") {
-      setWomenCount(0);
-    } else if (key === "women") {
-      setMenCount(0);
-    }
-    // Si es mixto, no se resetea nada
+    if (key === "men") setWomenCount(0);
+    else if (key === "women") setMenCount(0);
   };
 
   const togglePaymentMethod = (key) => {
@@ -467,211 +484,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
     setCoexistence((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const GenderOptions = ({ selected, toggleCheckbox }) => {
-    return (
-      <View style={styles.genderRow}>
-        {[
-          {
-            key: "men",
-            label: "Hombres",
-            description:
-              "Escoja esta opción si desea tener hombres en su arrendamiento",
-          },
-          {
-            key: "women",
-            label: "Mujeres",
-            description:
-              "Escoja esta opción si desea tener mujeres en su arrendamiento",
-          },
-          {
-            key: "mixed",
-            label: "Mixto",
-            description: "Escoja esta opción si desea un arrendamiento mixto",
-          },
-        ].map(({ key, label, description }) => (
-          <View key={key} style={styles.genderOption}>
-            <Checkbox
-              status={selected[key] ? "checked" : "unchecked"}
-              onPress={() => toggleCheckbox(key)}
-            />
-            <View style={styles.genderTextBlock}>
-              <Text style={styles.genderLabel}>{label}</Text>
-              <Text style={styles.genderDescription}>{description}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  const PaymentMethodsOptions = ({ selected, toggleCheckbox }) => {
-    return (
-      <View style={styles.genderRow}>
-        {[
-          {
-            key: "cash",
-            label: "Pago en efectivo",
-            description:
-              "Escoja esta opción si desea que el arriendo se genere en efectivo",
-          },
-          {
-            key: "deposit",
-            label: "Pago por depósito",
-            description:
-              "Escoja esta opción si desea que le generen un depósito",
-          },
-          {
-            key: "transfer",
-            label: "Pago por transferencia",
-            description:
-              "Escoja esta opción si desea que le cancelen por transferencia",
-          },
-        ].map(({ key, label, description }) => (
-          <View key={key} style={styles.genderOption}>
-            <Checkbox
-              status={selected[key] ? "checked" : "unchecked"}
-              onPress={() => toggleCheckbox(key)}
-            />
-            <View style={styles.genderTextBlock}>
-              <Text style={styles.genderLabel}>{label}</Text>
-              <Text style={styles.genderDescription}>{description}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  const AmenitiesOptions = ({ selected, toggleCheckbox }) => {
-    return (
-      <View style={styles.genderRow}>
-        {[
-          {
-            key: "electricShower",
-            label: "Ducha eléctrica",
-            description:
-              "Escoja esta opción si la propiedad cuenta con ducha eléctrica",
-          },
-          {
-            key: "showerHeater",
-            label: "Ducha con calefón",
-            description:
-              "Escoja esta opción si la propiedad cuenta con calefón",
-          },
-          {
-            key: "washer",
-            label: "Lavadora",
-            description:
-              "Escoja esta opción si la propiedad cuenta con lavadora",
-          },
-          {
-            key: "dryer",
-            label: "Secadora",
-            description:
-              "Escoja esta opción si la propiedad cuenta con secadora",
-          },
-          {
-            key: "internet",
-            label: "Internet",
-            description:
-              "Escoja esta opción si la propiedad cuenta con internet",
-          },
-          {
-            key: "water",
-            label: "Agua",
-            description:
-              "Escoja esta opción si incluye servicio de Agua Potable",
-          },
-          {
-            key: "light",
-            label: "Luz",
-            description:
-              "Escoja esta opción si incluye el servicio de luz eléctrica",
-          },
-        ].map(({ key, label, description }) => (
-          <View key={key} style={styles.genderOption}>
-            <Checkbox
-              status={selected[key] ? "checked" : "unchecked"}
-              onPress={() => toggleCheckbox(key)}
-            />
-            <View style={styles.genderTextBlock}>
-              <Text style={styles.genderLabel}>{label}</Text>
-              <Text style={styles.genderDescription}>{description}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  const CoexistenceOptions = ({ selected, toggleCheckbox }) => {
-    return (
-      <View style={styles.genderRow}>
-        {[
-          {
-            key: "petsAllowed",
-            label: "Mascotas permitidas",
-            description: "Escoja esta opción si permite el ingreso de mascotas",
-          },
-          {
-            key: "sharedBathroom",
-            label: "Baño Compartido",
-            description: "Escoja esta opción si tiene que compartir el baño",
-          },
-          {
-            key: "sharedShower",
-            label: "Ducha compartida",
-            description: "Escoja esta opción si tiene que compartir la ducha",
-          },
-          {
-            key: "sharedKitchen",
-            label: "Cocina compartida",
-            description: "Escoja esta opción si la cocina es compartida",
-          },
-          {
-            key: "sharedLivingRoom",
-            label: "Sala compartida",
-            description: "Escoja esta opción si la sala es compartida",
-          },
-          {
-            key: "sharedDinigRoom",
-            label: "Comedor compartido",
-            description: "Escoja esta opción si el comedor es compartido",
-          },
-        ].map(({ key, label, description }) => (
-          <View key={key} style={styles.genderOption}>
-            <Checkbox
-              status={selected[key] ? "checked" : "unchecked"}
-              onPress={() => toggleCheckbox(key)}
-            />
-            <View style={styles.genderTextBlock}>
-              <Text style={styles.genderLabel}>{label}</Text>
-              <Text style={styles.genderDescription}>{description}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  const Counter = ({ label, subtitle, value, onIncrement, onDecrement }) => (
-    <View style={styles.counterContainer}>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>{label}</Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-      </View>
-      <View style={styles.counterControls}>
-        <TouchableOpacity onPress={onIncrement} style={styles.counterButton}>
-          <Text style={styles.counterButtonText}>+</Text>
-        </TouchableOpacity>
-        <Text style={styles.counterValue}>{value}</Text>
-        <TouchableOpacity onPress={onDecrement} style={styles.counterButton}>
-          <Text style={styles.counterButtonText}>−</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   const pickImage = async () => {
     try {
       const { status } =
@@ -684,7 +496,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        selectionLimit: 5 - images.length, // Limita la selección
+        selectionLimit: 5 - images.length,
         quality: 0.5,
       });
 
@@ -711,13 +523,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
     }
   };
 
-  const getSelectedTenantType = () => {
-    if (tenantType.men && tenantType.women) return "Mixto";
-    if (tenantType.women) return "Mujer";
-    if (tenantType.men) return "Hombre";
-    return "Mixto"; // Default
-  };
-
   const renderOptions = (
     options,
     selectedOption,
@@ -733,8 +538,8 @@ const AdminEditDepartment = ({ route, navigation }) => {
         ]}
         onPress={() => {
           setSelectedOption(option);
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          closeAccordion(false); // Cierra el acordeón
+          safeAnimate();
+          closeAccordion(false);
         }}
       >
         <Text
@@ -749,12 +554,12 @@ const AdminEditDepartment = ({ route, navigation }) => {
     ));
 
   const toggleExpandRentalType = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    safeAnimate();
     setExpandedRentalType(!expandedRentalType);
   };
 
   const toggleExpandRentalSector = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    safeAnimate();
     setExpandedRentalSector(!expandedRentalSector);
   };
 
@@ -779,14 +584,24 @@ const AdminEditDepartment = ({ route, navigation }) => {
     }
   };
 
+  // ✅ Si entran a esta pantalla sin ID (por refresh en web), no rompe
+  if (!departmentId) {
+    return (
+      <View style={{ flex: 1, padding: 20, justifyContent: "center" }}>
+        <Header isLoggedIn={true} />
+        <Text style={{ textAlign: "center" }}>
+          No se encontró el ID del departamento para editar.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={100}
     >
-      
-
       <View style={isWeb ? styles.webContainer : styles.flex}>
         <ScrollView
           style={isWeb ? styles.webScrollView : styles.flex}
@@ -807,92 +622,78 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 Editar Departamento
               </Text>
 
-              <View style={[styles.menuButtonsWrapper, { width: inputWidth }]}>
-                <View style={styles.menuButtonsContainer}></View>
-              </View>
-
               <View style={styles.carouselContainer}>
-                {(() => {
-                  if (imageUrls.length === 0) {
-                    return (
-                      <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
-                    );
-                  }
+                {imageUrls.length === 0 ? (
+                  <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
+                ) : (
+                  <>
+                    {isWeb ? (
+                      <Image
+                        source={{ uri: imageUrls[currentImageIndex] }}
+                        style={styles.carouselImage}
+                        resizeMode="cover"
+                        onError={(e) =>
+                          console.error(
+                            "Error cargando imagen:",
+                            e.nativeEvent.error
+                          )
+                        }
+                        onClick={() => setIsImageModalVisible(true)}
+                      />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => setIsImageModalVisible(true)}
+                      >
+                        <Image
+                          source={{ uri: imageUrls[currentImageIndex] }}
+                          style={styles.carouselImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    )}
 
-                  const imageElement = (
-                    <Image
-                      source={{ uri: imageUrls[currentImageIndex] }}
-                      style={styles.carouselImage}
-                      resizeMode="cover"
-                      onError={(e) =>
-                        console.error(
-                          "Error cargando imagen:",
-                          e.nativeEvent.error
-                        )
-                      }
-                      {...(isWeb
-                        ? { onClick: () => setIsImageModalVisible(true) }
-                        : {})}
-                    />
-                  );
-
-                  return (
-                    <>
-                      {isWeb ? (
-                        imageElement
-                      ) : (
+                    {imageUrls.length > 1 && (
+                      <View style={styles.arrowContainer}>
                         <TouchableOpacity
-                          onPress={() => setIsImageModalVisible(true)}
+                          onPress={() =>
+                            setCurrentImageIndex(
+                              currentImageIndex === 0
+                                ? imageUrls.length - 1
+                                : currentImageIndex - 1
+                            )
+                          }
+                          style={styles.arrowButton}
                         >
-                          {imageElement}
+                          <Ionicons
+                            name="chevron-back"
+                            size={32}
+                            color="#fff"
+                          />
                         </TouchableOpacity>
-                      )}
 
-                      {imageUrls.length > 1 && (
-                        <View style={styles.arrowContainer}>
-                          <TouchableOpacity
-                            onPress={() =>
-                              setCurrentImageIndex(
-                                currentImageIndex === 0
-                                  ? imageUrls.length - 1
-                                  : currentImageIndex - 1
-                              )
-                            }
-                            style={styles.arrowButton}
-                          >
-                            <Ionicons
-                              name="chevron-back"
-                              size={32}
-                              color="#fff"
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() =>
-                              setCurrentImageIndex(
-                                currentImageIndex === imageUrls.length - 1
-                                  ? 0
-                                  : currentImageIndex + 1
-                              )
-                            }
-                            style={styles.arrowButton}
-                          >
-                            <Ionicons
-                              name="chevron-forward"
-                              size={32}
-                              color="#fff"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </>
-                  );
-                })()}
+                        <TouchableOpacity
+                          onPress={() =>
+                            setCurrentImageIndex(
+                              currentImageIndex === imageUrls.length - 1
+                                ? 0
+                                : currentImageIndex + 1
+                            )
+                          }
+                          style={styles.arrowButton}
+                        >
+                          <Ionicons
+                            name="chevron-forward"
+                            size={32}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </>
+                )}
               </View>
 
-              <TouchableOpacity
-                onPress={pickImage}
-                style={styles.addImageButton}
-              >
+              <TouchableOpacity onPress={pickImage} style={styles.addImageButton}>
                 <Text style={styles.addImageText}>+ Agregar más imágenes</Text>
               </TouchableOpacity>
 
@@ -906,7 +707,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="Escriba una pequeña descripción"
-                value={propertyTitle} // Vincula el valor del input al estado
+                value={propertyTitle}
                 onChangeText={setPropertyTitle}
               />
 
@@ -925,6 +726,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
                     color="black"
                   />
                 </TouchableOpacity>
+
                 {expandedRentalType && (
                   <View style={styles.accordionContent}>
                     {renderOptions(
@@ -953,6 +755,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
                     color="black"
                   />
                 </TouchableOpacity>
+
                 {expandedRentalSector && (
                   <View style={styles.accordionContent}>
                     {renderOptions(
@@ -974,104 +777,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 onChangeText={handlePriceChange}
               />
 
-              <Text style={styles.label}>Tipo de arrendatario</Text>
-              <GenderOptions
-                selected={tenantType}
-                toggleCheckbox={toggleTenantType}
-              />
-              {tenantType.men && (
-                <Counter
-                  label="Número de hombres"
-                  subtitle="Escoja la cantidad de hombres a los que desea arrendar"
-                  value={menCount}
-                  onIncrement={() => setMenCount(menCount + 1)}
-                  onDecrement={() => setMenCount(Math.max(0, menCount - 1))}
-                />
-              )}
-              {tenantType.women && (
-                <Counter
-                  label="Número de mujeres"
-                  subtitle="Escoja la cantidad de mujeres a las que desea arrendar"
-                  value={womenCount}
-                  onIncrement={() => setWomenCount(womenCount + 1)}
-                  onDecrement={() => setWomenCount(Math.max(0, womenCount - 1))}
-                />
-              )}
-              {tenantType.mixed && (
-                <>
-                  <Counter
-                    label="Número de hombres"
-                    subtitle="Escoja la cantidad de hombres a los que desea arrendar"
-                    value={menCount}
-                    onIncrement={() => setMenCount(menCount + 1)}
-                    onDecrement={() => setMenCount(Math.max(0, menCount - 1))}
-                  />
-                  <Counter
-                    label="Número de mujeres"
-                    subtitle="Escoja la cantidad de mujeres a las que desea arrendar"
-                    value={womenCount}
-                    onIncrement={() => setWomenCount(womenCount + 1)}
-                    onDecrement={() =>
-                      setWomenCount(Math.max(0, womenCount - 1))
-                    }
-                  />
-                </>
-              )}
-
-              <Counter
-                label="Habitaciones individuales"
-                subtitle="Escoja la cantidad de habitaciones con las que cuenta"
-                value={individualRoomsCount}
-                onIncrement={() =>
-                  setIndividualRoomsCount(individualRoomsCount + 1)
-                }
-                onDecrement={() =>
-                  setIndividualRoomsCount(Math.max(0, individualRoomsCount - 1))
-                }
-              />
-              <Counter
-                label="Baños individuales"
-                subtitle="Escoja la cantidad de baños individuales con los que cuenta"
-                value={individualBathroomsCount}
-                onIncrement={() =>
-                  setIndividualBathroomsCount(individualBathroomsCount + 1)
-                }
-                onDecrement={() =>
-                  setIndividualBathroomsCount(
-                    Math.max(0, individualBathroomsCount - 1)
-                  )
-                }
-              />
-              <Counter
-                label="Baños compartidos"
-                subtitle="Escoja la cantidad de baños compartidos con los que cuenta"
-                value={sharedBathroomsCount}
-                onIncrement={() =>
-                  setSharedBathroomsCount(sharedBathroomsCount + 1)
-                }
-                onDecrement={() =>
-                  setSharedBathroomsCount(Math.max(0, sharedBathroomsCount - 1))
-                }
-              />
-              <Counter
-                label="Salas"
-                subtitle="Escoja la cantidad de salas con las que cuenta"
-                value={livingRoomsCount}
-                onIncrement={() => setLivingRoomsCount(livingRoomsCount + 1)}
-                onDecrement={() =>
-                  setLivingRoomsCount(Math.max(0, livingRoomsCount - 1))
-                }
-              />
-              <Counter
-                label="Parqueaderos"
-                subtitle="Escoja la cantidad de parqueaderos con los que cuenta"
-                value={parkingSpotsCount}
-                onIncrement={() => setParkingSpotsCount(parkingSpotsCount + 1)}
-                onDecrement={() =>
-                  setParkingSpotsCount(Math.max(0, parkingSpotsCount - 1))
-                }
-              />
-
               <Text style={styles.label}>Descripción</Text>
               <TextInput
                 style={styles.input}
@@ -1081,9 +786,13 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 multiline
               />
 
-              <TouchableOpacity onPress={getCurrentLocation}>
+              <TouchableOpacity
+                onPress={getCurrentLocation}
+                style={[styles.button, styles.buttonLocation]}
+              >
                 <Text style={styles.buttonText}>Utilizar ubicación actual</Text>
               </TouchableOpacity>
+
               <Text style={styles.label}>Ubicación</Text>
               <View style={{ position: "relative" }}>
                 <TextInput
@@ -1135,13 +844,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 </View>
               )}
 
-              <TouchableOpacity
-                onPress={getCurrentLocation}
-                style={[styles.button, styles.buttonLocation]}
-              >
-                <Text style={styles.buttonText}>Utilizar ubicación actual</Text>
-              </TouchableOpacity>
-
               <MapComponent
                 latitude={
                   isNaN(Number(location?.latitude))
@@ -1157,31 +859,8 @@ const AdminEditDepartment = ({ route, navigation }) => {
                   if (!isNaN(latitude) && !isNaN(longitude)) {
                     setLocation({ latitude, longitude });
                     reverseGeocode(latitude, longitude);
-                  } else {
-                    console.warn(
-                      "Coordenadas inválidas recibidas:",
-                      latitude,
-                      longitude
-                    );
                   }
                 }}
-              />
-
-              <Text style={styles.label}>Formas de pago</Text>
-              <PaymentMethodsOptions
-                selected={paymentMethods}
-                toggleCheckbox={togglePaymentMethod}
-              />
-              <Text style={styles.label}>Comodidades</Text>
-              <AmenitiesOptions
-                selected={amenities}
-                toggleCheckbox={toggleAmenity}
-              />
-
-              <Text style={styles.label}>Convivencia</Text>
-              <CoexistenceOptions
-                selected={coexistence}
-                toggleCheckbox={toggleCoexistence}
               />
 
               <View style={styles.buttonRow}>
@@ -1191,6 +870,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 >
                   <Text style={styles.buttonText}>Atrás</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.button, styles.register]}
                   onPress={handleEditProperty}
@@ -1202,6 +882,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
           </View>
         </ScrollView>
       </View>
+
       {isImageModalVisible && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -1226,6 +907,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 </View>
               ))}
             </ScrollView>
+
             <Text style={styles.imageCount}>{images.length}/5 imágenes</Text>
           </View>
         </View>
