@@ -33,28 +33,29 @@ export default function Header({ isLoggedIn = false }) {
     currentScreen !== "Login" &&
     currentScreen !== "Register";
 
-  const handleLogout = () => {
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que quieres cerrar sesión?"
-      );
-      if (confirmed) {
-        setUser(null);
-      }
-    } else {
-      Alert.alert(
-        "Cerrar sesión",
-        "¿Estás seguro de que quieres cerrar sesión?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Cerrar sesión",
-            style: "destructive",
-            onPress: () => setUser(null),
-          },
-        ],
-        { cancelable: true }
-      );
+  // ✅ Confirmación compatible Web + Android + iOS (sin romper SSR)
+  const confirmAction = async (message) => {
+    // Web (solo si existe window)
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
+
+    // Android / iOS
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Aceptar", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const handleLogout = async () => {
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que quieres cerrar sesión?"
+    );
+
+    if (confirmed) {
+      setUser(null);
     }
   };
 
@@ -66,7 +67,7 @@ export default function Header({ isLoggedIn = false }) {
       return;
     }
 
-    // Resto de casos (como lo tenías antes)
+    // Resto de casos
     if (!user) {
       navigation.navigate("Home");
     } else if (user.role === "landlord") {
