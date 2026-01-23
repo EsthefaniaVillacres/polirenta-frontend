@@ -111,30 +111,29 @@ const AdminDepartmentList = ({ navigation }) => {
       alert("No se pudo eliminar el departamento.");
     }
   };
-  const confirmDelete = (departmentId) => {
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que deseas eliminar este departamento?"
-      );
-      if (confirmed) {
-        deleteDepartment(departmentId);
-      }
-    } else {
-      Alert.alert(
-        "Confirmar eliminación",
-        "¿Estás seguro de que deseas eliminar este departamento?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            style: "destructive",
-            onPress: () => deleteDepartment(departmentId),
-          },
-        ],
-        { cancelable: true }
-      );
+  const confirmAction = async (message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
+
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Eliminar", style: "destructive", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const confirmDelete = async (departmentId) => {
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que deseas eliminar este departamento?"
+    );
+
+    if (confirmed) {
+      deleteDepartment(departmentId);
     }
   };
+
   const loadNotifications = useCallback(async () => {
     try {
       const unreadNotifications =
@@ -144,9 +143,8 @@ const AdminDepartmentList = ({ navigation }) => {
         return {
           ...n,
           title: "Nueva solicitud de arriendo",
-          message: `El inquilino ${
-            data.tenantName ?? "desconocido"
-          } está interesado en tu propiedad.`,
+          message: `El inquilino ${data.tenantName ?? "desconocido"
+            } está interesado en tu propiedad.`,
         };
       });
 
