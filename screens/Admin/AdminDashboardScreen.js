@@ -11,7 +11,9 @@ import { LineChart, PieChart } from "react-native-chart-kit";
 import Header from "../../components/Header";
 import axios from "axios";
 
-const screenWidth = Dimensions.get("window").width;
+import { useWindowDimensions } from "react-native";
+const { width: screenWidth } = useWindowDimensions();
+
 
 const AdminDashboardScreen = ({ navigation }) => {
   const [stats, setStats] = useState({

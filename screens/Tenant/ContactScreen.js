@@ -15,6 +15,7 @@ import styles from "../../styles/ContactScreenStyles";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../../context/AuthContext";
 import axios from "axios";
+import { useWindowDimensions } from "react-native";
 
 const ContactScreen = ({ navigation, route }) => {
   const { notificationId, rentalId } = route.params ?? {};
@@ -24,7 +25,7 @@ const ContactScreen = ({ navigation, route }) => {
   const { user } = useContext(AuthContext);
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const containerWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "95%";
   const [arrendador, setArrendador] = useState(null);

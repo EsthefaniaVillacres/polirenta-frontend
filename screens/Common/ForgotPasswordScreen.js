@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import Header from "../../components/Header";
 import styles from "../../styles/ForgotPasswordScreenStyles";
-
+import { useWindowDimensions } from "react-native";
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState("");
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.9, 400) : "100%";
 

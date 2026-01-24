@@ -13,6 +13,7 @@ import Header from "../../components/Header";
 import styles from "../../styles/ProfileScreenStyles";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
+import { useWindowDimensions } from "react-native";
 
 export default function AdminEditUser({ navigation, route }) {
   const { userId } = route.params; // 🔥 IMPORTANTE
@@ -21,7 +22,7 @@ export default function AdminEditUser({ navigation, route }) {
   const [expandedBank, setExpandedBank] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
   const fontSizeTitle = isWeb ? 40 : screenWidth * 0.12;

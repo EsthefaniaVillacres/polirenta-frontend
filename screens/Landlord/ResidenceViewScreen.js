@@ -22,6 +22,7 @@ import axios from "axios";
 import NotificationBanner from "../../components/NotificationBanner";
 import NotificationService from "../../services/NotificationService";
 import isEqual from "lodash.isequal";
+import { useWindowDimensions } from "react-native";
 
 const ResidenceViewScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
@@ -42,7 +43,7 @@ const ResidenceViewScreen = ({ navigation }) => {
   const pollingIntervalRef = useRef(null);
   const mountedRef = useRef(true);
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 

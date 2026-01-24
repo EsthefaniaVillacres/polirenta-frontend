@@ -17,6 +17,7 @@ import styles from "../../styles/EditRoomScreenStyles";
 import * as ImagePicker from "expo-image-picker";
 //import { AuthContext } from "../../context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
+import { useWindowDimensions } from "react-native";
 
 const AdminEditRoom = ({ navigation, route }) => {
   // VALIDACIÓN SIN ROMPER LOS HOOKS
@@ -221,7 +222,7 @@ const AdminEditRoom = ({ navigation, route }) => {
   );
 
   //Dimesiones y estilos
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
   const fontSizeTitle = isWeb ? 40 : screenWidth * 0.12;

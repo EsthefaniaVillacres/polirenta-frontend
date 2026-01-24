@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import Header from "../../components/Header";
 import axios from "axios";
+import { useWindowDimensions } from "react-native";
 
 const API_BASE = "https://backend-arriendos-production.up.railway.app";
 
@@ -20,7 +21,7 @@ export default function AdminContractsList({ navigation }) {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const containerWidth = isWeb ? Math.min(screenWidth * 0.95, 700) : "100%";
   const [search, setSearch] = useState("");

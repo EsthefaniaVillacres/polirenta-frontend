@@ -16,7 +16,7 @@ import styles from "../../styles/RegisterScreenStyles";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-
+import { useWindowDimensions } from "react-native";
 export default function RegisterModalContent({ onClose, onOpenLogin }) {
   const [cedula, setCedula] = useState("");
   const [nombres, setNombres] = useState("");
@@ -35,7 +35,7 @@ export default function RegisterModalContent({ onClose, onOpenLogin }) {
   const [filtrados, setFiltrados] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
 
   // ✅ Ancho adaptativo (móvil siempre 100%, web limitado)

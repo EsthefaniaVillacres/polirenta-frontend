@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import axios from "axios";
 import { AuthContext } from "../../context/AuthContext";
+import { useWindowDimensions } from "react-native";
 
 const RegisterPropertyScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
@@ -74,7 +75,7 @@ const RegisterPropertyScreen = ({ navigation }) => {
   const [imageArray, setImageArray] = useState([]);
 
   //Dimesiones y estilos
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
   const fontSizeTitle = isWeb ? 40 : screenWidth * 0.12;

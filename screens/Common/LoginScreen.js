@@ -12,13 +12,14 @@ import Header from "../../components/Header";
 import styles from "../../styles/LoginScreenStyles";
 import { AuthContext } from "../../context/AuthContext";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import { useWindowDimensions } from "react-native";
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { setUser } = useContext(AuthContext);
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.9, 400) : "100%";
   const [showPassword, setShowPassword] = useState(false);

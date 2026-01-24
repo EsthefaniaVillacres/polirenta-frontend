@@ -13,11 +13,12 @@ import {
   StyleSheet,
 } from "react-native";
 import styles from "../../styles/ForgotPasswordScreenStyles";
+import { useWindowDimensions } from "react-native";
 
 export default function ForgotPasswordModalContent({ onClose, onOpenLogin }) {
   const [email, setEmail] = useState("");
+  const { width: screenWidth } = useWindowDimensions();
 
-  const screenWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
 
   // ✅ ancho adaptativo (web limitado / móvil full)
@@ -79,7 +80,7 @@ export default function ForgotPasswordModalContent({ onClose, onOpenLogin }) {
             style={local.icon}
           />
 
-         
+
           <Text style={local.subtitle}>
             Ingresa tu correo y te enviaremos un enlace
           </Text>

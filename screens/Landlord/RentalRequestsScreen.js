@@ -16,9 +16,10 @@ import axios from "axios";
 import Icon from "react-native-vector-icons/FontAwesome5";
 
 import { AuthContext } from "../../context/AuthContext";
+import { useWindowDimensions } from "react-native";
 
 const RentalRequestsScreen = ({ navigation }) => {
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 

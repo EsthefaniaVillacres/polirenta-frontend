@@ -1,5 +1,5 @@
 import React from 'react';
-
+import { useWindowDimensions } from "react-native";
 import { View, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import styles from '../styles/NotificationBannerStyles'; 
 
@@ -14,8 +14,8 @@ const NotificationBanner = ({
   isVisible = true 
 }) => {
   if (!isVisible || !notification) return null;
+const { width: screenWidth } = useWindowDimensions();
 
-  const screenWidth = Dimensions.get('window').width;
   const isWeb = Platform.OS === 'web';
   const bannerWidth = isWeb ? Math.min(screenWidth * 0.4, 350) : screenWidth * 0.9;
 

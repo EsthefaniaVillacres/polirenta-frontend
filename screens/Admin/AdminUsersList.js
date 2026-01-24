@@ -14,7 +14,9 @@ import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import Header from "../../components/Header";
-const screenWidth = Dimensions.get("window").width;
+import { useWindowDimensions } from "react-native";
+
+const { width: screenWidth } = useWindowDimensions();
 const isWeb = Platform.OS === "web";
 const containerWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 

@@ -15,6 +15,7 @@ import styles from "../../styles/TenantViewScreenStyles";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../../context/AuthContext";
 import MapComponent from "../../components/MapComponent";
+import { useWindowDimensions } from "react-native";
 
 const AcceptRentalScreen = ({ navigation, route }) => {
   const {
@@ -37,7 +38,7 @@ const AcceptRentalScreen = ({ navigation, route }) => {
   const { user } = useContext(AuthContext);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [inputHeight, setInputHeight] = useState(0);
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "95%";
 

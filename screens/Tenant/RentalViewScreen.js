@@ -17,6 +17,7 @@ import { AuthContext } from "../../context/AuthContext";
 import MapComponent from "../../components/MapComponent";
 import NotificationService from "../../services/NotificationService";
 import axios from "axios";
+import { useWindowDimensions } from "react-native";
 
 const RentalViewScreen = ({ navigation, route }) => {
   const {
@@ -39,7 +40,7 @@ const RentalViewScreen = ({ navigation, route }) => {
   const { user } = useContext(AuthContext);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [inputHeight, setInputHeight] = useState(0);
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "95%";
   const [rentalStatus, setRentalStatus] = useState(null);

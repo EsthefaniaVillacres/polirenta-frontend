@@ -29,6 +29,7 @@ import NotificationBanner from "../../components/NotificationBanner";
 import NotificationService from "../../components/NotificationService";
 import isEqual from "lodash.isequal";
 import axios from "axios";
+import { useWindowDimensions } from "react-native";
 
 const ResidenceRoomViewScreen = ({ navigation, route }) => {
   const {
@@ -50,7 +51,7 @@ const ResidenceRoomViewScreen = ({ navigation, route }) => {
   const [imageIndices, setImageIndices] = useState({});
   const [loading, setLoading] = useState(true);
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 

@@ -20,6 +20,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
 
 import axios from "axios";
+import { useWindowDimensions } from "react-native";
 
 const AdminRoomsList = ({ navigation, route }) => {
   const {
@@ -39,7 +40,7 @@ const AdminRoomsList = ({ navigation, route }) => {
   const [isEditing] = useState(false);
   const [imageIndices, setImageIndices] = useState({});
   const [loading, setLoading] = useState(true);
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 

@@ -26,6 +26,7 @@ import axios from "axios";
 import NotificationBanner from "../../components/NotificationBanner";
 import NotificationService from "../../services/NotificationService";
 import isEqual from "lodash.isequal";
+import { useWindowDimensions } from "react-native";
 
 const TenantViewScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);

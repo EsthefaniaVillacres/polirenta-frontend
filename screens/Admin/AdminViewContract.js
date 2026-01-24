@@ -19,12 +19,13 @@ import styles from "../../styles/ContractScreenStyles";
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import axios from "axios";
+import { useWindowDimensions } from "react-native";
 
 const API_BASE = "https://backend-arriendos-production.up.railway.app";
 
 export default function AdminViewContract({ navigation, route }) {
   const { id } = route?.params || {};
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
   const fontSizeTitle = isWeb ? 40 : screenWidth * 0.12;

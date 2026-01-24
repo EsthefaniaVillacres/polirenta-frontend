@@ -14,13 +14,14 @@ import MapComponent from "../../components/MapComponent";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import styles from "../../styles/ResidenceViewScreenStyles"; // reutilizamos tus estilos
+import { useWindowDimensions } from "react-native";
 
 export default function AdminResidencesList({ navigation }) {
   const [residences, setResidences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [imageIndices, setImageIndices] = useState({});
 
-  const screenWidth = Dimensions.get("window").width;
+  const { width: screenWidth } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
   const containerWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 
