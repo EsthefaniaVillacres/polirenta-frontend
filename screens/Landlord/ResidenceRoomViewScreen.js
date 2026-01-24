@@ -26,7 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AuthContext } from "../../context/AuthContext";
 import { useFocusEffect } from "@react-navigation/native";
 import NotificationBanner from "../../components/NotificationBanner";
-import NotificationService from "../../components/NotificationService";
+import NotificationService from "../../services/NotificationService";
 import isEqual from "lodash.isequal";
 import axios from "axios";
 import { useWindowDimensions } from "react-native";
