@@ -25,6 +25,7 @@ import isEqual from "lodash.isequal";
 
 const ResidenceViewScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
+
   const [inputHeight, setInputHeight] = useState(0);
   const [images, setImages] = useState([]);
   const [residences, setResidences] = useState([]);
@@ -34,7 +35,7 @@ const ResidenceViewScreen = ({ navigation }) => {
   const [isEditing] = useState(false);
   const [imageIndices, setImageIndices] = useState({});
   const [loading, setLoading] = useState(true);
-  
+
   // Referencias para evitar re-renders innecesarios
   const residencesRef = useRef([]);
   const notificationsRef = useRef([]);
@@ -45,7 +46,6 @@ const ResidenceViewScreen = ({ navigation }) => {
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
 
- 
   const mapComodidades = {
     "Ducha eléctrica": "electricShower",
     "Ducha con calefón": "showerHeater",
@@ -65,57 +65,94 @@ const ResidenceViewScreen = ({ navigation }) => {
     "Comedor compartido": "sharedDinigRoom",
   };
 
-  
-  const fetchResidences = useCallback(async (showLoadingIndicator = false) => {
-    if (showLoadingIndicator) {
-      setLoading(true);
-    }
-    
+  // ✅ JSON.parse seguro
+  const safeParseJSON = (value, fallback = []) => {
+    if (!value) return fallback;
+    if (Array.isArray(value)) return value;
+
     try {
-      const response = await axios.get(
-        `https://backend-arriendos-production.up.railway.app/api/auth/residences?userId=${user?.id}`
-      );
-      
-      const newResidences = response.data.length > 0 ? response.data : [];
-      
-      if (!isEqual(newResidences, residencesRef.current)) {
-        residencesRef.current = newResidences;
-        if (mountedRef.current) {
-          setResidences(newResidences);
+      const parsed = JSON.parse(value);
+      return parsed ?? fallback;
+    } catch (e) {
+      return fallback;
+    }
+  };
+
+  // ✅ confirmación compatible Web + Mobile + SSR
+  const confirmAction = async (message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
+
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Eliminar", style: "destructive", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const fetchResidences = useCallback(
+    async (showLoadingIndicator = false) => {
+      if (!user?.id) return;
+
+      if (showLoadingIndicator) setLoading(true);
+
+      try {
+        const response = await axios.get(
+          `https://backend-arriendos-production.up.railway.app/api/auth/residences?userId=${user?.id}`
+        );
+
+        const newResidences = Array.isArray(response.data) ? response.data : [];
+
+        if (!isEqual(newResidences, residencesRef.current)) {
+          residencesRef.current = newResidences;
+          if (mountedRef.current) {
+            setResidences(newResidences);
+          }
+        }
+      } catch (error) {
+        console.error("Error al cargar residencias:", error);
+        if (showLoadingIndicator) {
+          alert("No se pudieron cargar las residencias.");
+        }
+      } finally {
+        if (showLoadingIndicator && mountedRef.current) {
+          setLoading(false);
         }
       }
-    } catch (error) {
-      console.error("Error al cargar residencias:", error);
-      if (showLoadingIndicator) {
-        alert("No se pudieron cargar las residencias.");
-      }
-    } finally {
-      if (showLoadingIndicator && mountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [user?.id]);
+    },
+    [user?.id]
+  );
 
- 
   const loadNotifications = useCallback(async () => {
     try {
-      const unreadNotifications = await NotificationService.getUnreadNotificationsLandlord(user?.id);
-      const formattedNotifications = unreadNotifications.map((n) => {
-        const data = JSON.parse(n.data ?? "{}");
+      const unreadNotifications =
+        await NotificationService.getUnreadNotificationsLandlord(user?.id);
+
+      const formattedNotifications = (unreadNotifications ?? []).map((n) => {
+        let data = {};
+        try {
+          data = JSON.parse(n.data ?? "{}");
+        } catch {
+          data = {};
+        }
+
         return {
           ...n,
           title: "Nueva solicitud de arriendo",
-          message: `El inquilino ${data.tenantName ?? "desconocido"} está interesado en tu propiedad.`,
+          message: `El inquilino ${
+            data.tenantName ?? "desconocido"
+          } está interesado en tu propiedad.`,
         };
       });
 
-     
       if (!isEqual(formattedNotifications, notificationsRef.current)) {
         notificationsRef.current = formattedNotifications;
-        
+
         if (mountedRef.current) {
           setNotifications(formattedNotifications);
-          
+
           if (formattedNotifications.length > 0) {
             setCurrentNotification(formattedNotifications[0]);
             setShowNotification(true);
@@ -130,130 +167,119 @@ const ResidenceViewScreen = ({ navigation }) => {
     }
   }, [user?.id]);
 
- 
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
 
     pollingIntervalRef.current = setInterval(async () => {
       if (mountedRef.current && user?.id) {
-       
-        await Promise.all([
-          fetchResidences(false),
-          loadNotifications()
-        ]);
+        await Promise.all([fetchResidences(false), loadNotifications()]);
       }
-    }, 3000); 
+    }, 3000);
   }, [fetchResidences, loadNotifications, user?.id]);
 
-  
   useEffect(() => {
-    if (user?.id) {
-      
-      fetchResidences(true);
-      loadNotifications();
-      
-      const timeoutId = setTimeout(() => {
-        startPolling();
-      }, 2000);
+    if (!user?.id) return;
 
-      return () => {
-        clearTimeout(timeoutId);
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-        }
-      };
-    }
+    fetchResidences(true);
+    loadNotifications();
+
+    const timeoutId = setTimeout(() => {
+      startPolling();
+    }, 2000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
   }, [user?.id, fetchResidences, loadNotifications, startPolling]);
-
 
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, []);
 
-  
   useEffect(() => {
-    if (user?.id) {
-      const subscription = NotificationService.setupNotificationListener(
-        (notification) => {
-          console.log("Nueva notificación recibida:", notification);
-          // Recargar notificaciones inmediatamente cuando llega una nueva
-          loadNotifications();
-        }
-      );
+    if (!user?.id) return;
 
-      return () => {
-        if (subscription) {
-          subscription.remove();
-        }
-      };
-    }
+    const subscription = NotificationService.setupNotificationListener(
+      (notification) => {
+        console.log("Nueva notificación recibida:", notification);
+        loadNotifications();
+      }
+    );
+
+    return () => {
+      if (subscription?.remove) subscription.remove();
+    };
   }, [user?.id, loadNotifications]);
 
-  // Funciones de manejo de notificaciones 
   const handleNotificationPress = () => {
-    if (currentNotification) {
-      const notificationData = JSON.parse(currentNotification.data || "{}");
-      navigation.navigate("RentalRequests", {
-        notificationId: currentNotification.id_notificacion,
-        propertyId: notificationData.propertyId,
-        inquilino: {
-          id: notificationData.tenantId,
-          nombres: notificationData.tenantName?.split(" ")[0] || "",
-          apellidos: notificationData.tenantName?.split(" ").slice(1).join(" ") || "",
-          email: notificationData.tenantEmail,
-          telefono: notificationData.tenantPhone,
-          cedula: notificationData.tenantCedula,
-        },
-      });
+    if (!currentNotification) return;
+
+    let notificationData = {};
+    try {
+      notificationData = JSON.parse(currentNotification.data ?? "{}");
+    } catch {
+      notificationData = {};
+    }
+
+    navigation.navigate("RentalRequests", {
+      notificationId: currentNotification.id_notificacion,
+      propertyId: notificationData.propertyId,
+      inquilino: {
+        id: notificationData.tenantId,
+        nombres: notificationData.tenantName?.split(" ")[0] || "",
+        apellidos:
+          notificationData.tenantName?.split(" ").slice(1).join(" ") || "",
+        email: notificationData.tenantEmail,
+        telefono: notificationData.tenantPhone,
+        cedula: notificationData.tenantCedula,
+      },
+    });
+
+    setShowNotification(false);
+  };
+
+  const handleNotificationClose = () => {
+    if (!currentNotification) return;
+
+    NotificationService.markAsRead(currentNotification.id_notificacion);
+
+    const updatedNotifications = notifications.filter(
+      (n) => n.id_notificacion !== currentNotification.id_notificacion
+    );
+
+    setNotifications(updatedNotifications);
+    notificationsRef.current = updatedNotifications;
+
+    if (updatedNotifications.length > 0) {
+      setCurrentNotification(updatedNotifications[0]);
+      setShowNotification(true);
+    } else {
+      setCurrentNotification(null);
       setShowNotification(false);
     }
   };
 
-  const handleNotificationClose = () => {
-    if (currentNotification) {
-      NotificationService.markAsRead(currentNotification.id_notificacion);
-
-      const updatedNotifications = notifications.filter(
-        (n) => n.id_notificacion !== currentNotification.id_notificacion
-      );
-
-      setNotifications(updatedNotifications);
-      notificationsRef.current = updatedNotifications;
-
-      if (updatedNotifications.length > 0) {
-        setCurrentNotification(updatedNotifications[0]);
-        setShowNotification(true);
-      } else {
-        setCurrentNotification(null);
-        setShowNotification(false);
-      }
-    }
-  };
-
-  // Función para eliminar residencia
   const deleteResidence = async (residenceId) => {
     try {
       const response = await axios.delete(
         `https://backend-arriendos-production.up.railway.app/api/auth/residences/${residenceId}`
       );
+
       if (response.status === 200) {
-       
+        // ✅ OJO: aquí se debe comparar con id_propiedad
         const updatedResidences = residences.filter(
-          (residence) => residence.id !== residenceId
+          (r) => r.id_propiedad !== residenceId
         );
+
         setResidences(updatedResidences);
         residencesRef.current = updatedResidences;
-        
+
         alert("Residencia eliminada con éxito.");
-        
-        
+
         setTimeout(() => {
           fetchResidences(false);
         }, 1000);
@@ -264,34 +290,21 @@ const ResidenceViewScreen = ({ navigation }) => {
     }
   };
 
-  const confirmDelete = (residenceId) => {
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que deseas eliminar esta residencia?"
-      );
-      if (confirmed) {
-        deleteResidence(residenceId);
-      }
-    } else {
-      Alert.alert(
-        "Confirmar eliminación",
-        "¿Estás seguro de que deseas eliminar esta residencia?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            style: "destructive",
-            onPress: () => deleteResidence(residenceId),
-          },
-        ],
-        { cancelable: true }
-      );
+  const confirmDelete = async (residenceId) => {
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que deseas eliminar esta residencia?"
+    );
+
+    if (confirmed) {
+      deleteResidence(residenceId);
     }
   };
 
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult?.granted) {
       alert("Se requiere permiso para acceder a la galería.");
       return;
     }
@@ -304,7 +317,8 @@ const ResidenceViewScreen = ({ navigation }) => {
     });
 
     if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+      const uri = result.assets?.[0]?.uri;
+      if (uri) setImages((prev) => [...prev, uri]);
     }
   };
 
@@ -320,6 +334,7 @@ const ResidenceViewScreen = ({ navigation }) => {
         onClose={handleNotificationClose}
         isVisible={showNotification}
       />
+
       <View style={isWeb ? styles.webContainer : styles.flex}>
         {loading ? (
           <Text>Cargando...</Text>
@@ -341,15 +356,18 @@ const ResidenceViewScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={true}
           >
             {/* ENCABEZADO */}
-    <View style={{
-      height: 70,
-      width: "100%",
-      flexDirection: "row"
-    }}>
-      <View style={{ flex: 1, backgroundColor: "#B80000" }} />   
-      <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
-      <View style={{ flex: 1, backgroundColor: "#006400" }} />
-    </View>
+            <View
+              style={{
+                height: 70,
+                width: "100%",
+                flexDirection: "row",
+              }}
+            >
+              <View style={{ flex: 1, backgroundColor: "#B80000" }} />
+              <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
+              <View style={{ flex: 1, backgroundColor: "#006400" }} />
+            </View>
+
             <Header isLoggedIn={true} />
 
             {residences.map((residence, index) => {
@@ -363,9 +381,21 @@ const ResidenceViewScreen = ({ navigation }) => {
                 .map((c) => mapConvivencia[c])
                 .filter(Boolean);
 
+              const fotosArray = safeParseJSON(residence?.fotos, []);
+              const imageUrls = fotosArray.map(
+                (foto) =>
+                  `https://backend-arriendos-production.up.railway.app/images/${foto}`
+              );
+
+              const currentIndex = imageIndices[index] || 0;
+
               return (
-                <View key={`residence-${residence.id_propiedad}-${index}`} style={styles.container}>
+                <View
+                  key={`residence-${residence.id_propiedad}-${index}`}
+                  style={styles.container}
+                >
                   <View style={styles.residenceContent}></View>
+
                   <View style={[styles.form, { width: inputWidth }]}>
                     {isEditing && (
                       <TouchableOpacity
@@ -376,9 +406,7 @@ const ResidenceViewScreen = ({ navigation }) => {
                           <Image
                             source={{ uri: images[0] }}
                             style={styles.imagePreview}
-                            onError={() => {
-                              console.error("Error al cargar la imagen");
-                            }}
+                            onError={() => console.error("Error al cargar imagen")}
                           />
                         ) : (
                           <Text style={styles.imagePlaceholder}>
@@ -390,71 +418,59 @@ const ResidenceViewScreen = ({ navigation }) => {
 
                     <View style={[styles.carouselWrapper, { width: inputWidth }]}>
                       <View style={styles.carouselContainer}>
-                        {(() => {
-                          const fotosArray = JSON.parse(residence.fotos || "[]");
-                          const imageUrls = fotosArray.map(
-                            (foto) => `https://backend-arriendos-production.up.railway.app/images/${foto}`
-                          );
-                          const currentIndex = imageIndices[index] || 0;
+                        {imageUrls.length === 0 ? (
+                          <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
+                        ) : (
+                          <>
+                            <Image
+                              source={{ uri: imageUrls[currentIndex] }}
+                              style={styles.carouselImage}
+                              resizeMode="cover"
+                            />
 
-                          if (imageUrls.length === 0) {
-                            return (
-                              <Text style={styles.imagePlaceholder}>
-                                Sin imágenes
-                              </Text>
-                            );
-                          }
+                            {imageUrls.length > 1 && (
+                              <View style={styles.arrowContainer}>
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    setImageIndices((prev) => ({
+                                      ...prev,
+                                      [index]:
+                                        currentIndex === 0
+                                          ? imageUrls.length - 1
+                                          : currentIndex - 1,
+                                    }))
+                                  }
+                                  style={styles.arrowButton}
+                                >
+                                  <Ionicons
+                                    name="chevron-back"
+                                    size={32}
+                                    color="#fff"
+                                  />
+                                </TouchableOpacity>
 
-                          return (
-                            <>
-                              <Image
-                                source={{ uri: imageUrls[currentIndex] }}
-                                style={styles.carouselImage}
-                                resizeMode="cover"
-                              />
-                              {imageUrls.length > 1 && (
-                                <View style={styles.arrowContainer}>
-                                  <TouchableOpacity
-                                    onPress={() =>
-                                      setImageIndices((prev) => ({
-                                        ...prev,
-                                        [index]:
-                                          currentIndex === 0
-                                            ? imageUrls.length - 1
-                                            : currentIndex - 1,
-                                      }))
-                                    }
-                                    style={styles.arrowButton}
-                                  >
-                                    <Ionicons
-                                      name="chevron-back"
-                                      size={32}
-                                      color="#fff"
-                                    />
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    onPress={() =>
-                                      setImageIndices((prev) => ({
-                                        ...prev,
-                                        [index]:
-                                          currentIndex === imageUrls.length - 1
-                                            ? 0
-                                            : currentIndex + 1,
-                                      }))
-                                    }
-                                    style={styles.arrowButton}
-                                  >
-                                    <Ionicons
-                                      name="chevron-forward"
-                                      size={32}
-                                      color="#fff"
-                                    />
-                                  </TouchableOpacity>
-                                </View>
-                              )}
-                            </>
-                          );
-                        })()}
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    setImageIndices((prev) => ({
+                                      ...prev,
+                                      [index]:
+                                        currentIndex === imageUrls.length - 1
+                                          ? 0
+                                          : currentIndex + 1,
+                                    }))
+                                  }
+                                  style={styles.arrowButton}
+                                >
+                                  <Ionicons
+                                    name="chevron-forward"
+                                    size={32}
+                                    color="#fff"
+                                  />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </>
+                        )}
                       </View>
                     </View>
 
@@ -569,9 +585,7 @@ const ResidenceViewScreen = ({ navigation }) => {
                         })
                       }
                     >
-                      <Text style={styles.buttonText}>
-                        Cuartos de la residencia
-                      </Text>
+                      <Text style={styles.buttonText}>Cuartos de la residencia</Text>
                     </TouchableOpacity>
 
                     <View style={styles.buttonRow}>
@@ -584,16 +598,11 @@ const ResidenceViewScreen = ({ navigation }) => {
 
                       <TouchableOpacity
                         style={[styles.button, styles.register]}
-                        onPress={() => {
-                          console.log("residence:", residence);
-                          console.log(
-                            "Navegando a edición con ID:",
-                            residence.id_propiedad
-                          );
+                        onPress={() =>
                           navigation.navigate("EditResidence", {
                             residenceId: residence.id_propiedad,
-                          });
-                        }}
+                          })
+                        }
                       >
                         <Text style={styles.buttonText}>Editar</Text>
                       </TouchableOpacity>
@@ -602,6 +611,7 @@ const ResidenceViewScreen = ({ navigation }) => {
                 </View>
               );
             })}
+
             <TouchableOpacity
               style={styles.addDeptButton}
               onPress={() => navigation.navigate("RegisterProperty")}

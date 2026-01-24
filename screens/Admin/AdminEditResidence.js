@@ -21,21 +21,25 @@ import * as Location from "expo-location";
 import axios from "axios";
 import { AuthContext } from "../../context/AuthContext";
 
+const BACKEND_URL = "https://backend-arriendos-production.up.railway.app";
+
 const AdminEditResidence = ({ route, navigation }) => {
   const { user } = useContext(AuthContext);
-  console.log(user);
   const { residenceId } = route.params;
-  //Variables
+
+  // Variables
   const [tenantType, setTenantType] = useState({
     men: false,
     women: false,
     mixed: false,
   });
+
   const [paymentMethods, setPaymentMethods] = useState({
     cash: false,
     deposit: false,
     transfer: false,
   });
+
   const [amenities, setAmenities] = useState({
     electricShower: false,
     showerHeater: false,
@@ -45,6 +49,7 @@ const AdminEditResidence = ({ route, navigation }) => {
     water: false,
     light: false,
   });
+
   const [coexistence, setCoexistence] = useState({
     petsAllowed: false,
     sharedBathroom: false,
@@ -61,6 +66,7 @@ const AdminEditResidence = ({ route, navigation }) => {
   const [address, setAddress] = useState("");
   const [debounceTimeout, setDebounceTimeout] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+
   const [menCount, setMenCount] = useState(0);
   const [womenCount, setWomenCount] = useState(0);
   const [individualRoomsCount, setIndividualRoomsCount] = useState(0);
@@ -68,13 +74,16 @@ const AdminEditResidence = ({ route, navigation }) => {
   const [sharedBathroomsCount, setSharedBathroomsCount] = useState(0);
   const [livingRoomsCount, setLivingRoomsCount] = useState(0);
   const [parkingSpotsCount, setParkingSpotsCount] = useState(0);
+
   const [expandedRentalType, setExpandedRentalType] = useState(false);
   const [expandedRentalSector, setExpandedRentalSector] = useState(false);
   const [selectedRentalType, setSelectedRentalType] = useState(null);
   const [selectedRentalSector, setSelectedRentalSector] = useState(null);
+
   const [propertyTitle, setPropertyTitle] = useState("");
   const [propertyDescription, setPropertyDescription] = useState("");
   const [propertyPrice, setPropertyPrice] = useState("");
+
   const [images, setImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -82,75 +91,79 @@ const AdminEditResidence = ({ route, navigation }) => {
 
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [imagesToDelete, setImagesToDelete] = useState([]);
-  //Dimesiones y estilos
+
+  // Dimensiones y estilos
   const screenWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
   const fontSizeTitle = isWeb ? 40 : screenWidth * 0.12;
 
-  //
   const rentalType = ["Residencia", "Departamento"];
-  const rentalSector = ["Barrio Chino", "Puerta Principal (Pedro Vicente Maldonado)", "Puerta Intermedia (Milton Reyes)", "Puerta de Medicina (Canónico Ramos)"];
+  const rentalSector = [
+    "Barrio Chino",
+    "Puerta Principal (Pedro Vicente Maldonado)",
+    "Puerta Intermedia (Milton Reyes)",
+    "Puerta de Medicina (Canónico Ramos)",
+  ];
 
-  //Metodos
+  // ✅ Confirmación compatible Web + Android + iOS (sin romper Vercel)
+  const confirmAction = async (message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
 
-  const handleDeleteImage = (index) => {
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Eliminar", style: "destructive", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const handleDeleteImage = async (index) => {
     const imageToDelete = images[index];
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que deseas eliminar esta imagen?"
+    );
 
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que deseas eliminar esta imagen?"
-      );
-      if (confirmed) {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-        if (!imageToDelete.isNew) {
-          setImagesToDelete((prev) => [...prev, imageToDelete.name]);
-        }
-      }
-    } else {
-      Alert.alert(
-        "Eliminar imagen",
-        "¿Estás seguro de que deseas eliminar esta imagen?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            onPress: () => {
-              setImages((prev) => prev.filter((_, i) => i !== index));
-              if (!imageToDelete.isNew) {
-                setImagesToDelete((prev) => [...prev, imageToDelete.name]);
-              }
-            },
-            style: "destructive",
-          },
-        ]
-      );
+    if (!confirmed) return;
+
+    setImages((prev) => prev.filter((_, i) => i !== index));
+
+    if (imageToDelete && !imageToDelete.isNew) {
+      setImagesToDelete((prev) => [...prev, imageToDelete.name]);
     }
   };
 
+  // ✅ Cargar datos de la residencia
   useEffect(() => {
     const fetchResidenceData = async () => {
       try {
         const response = await axios.get(
-          `https://backend-arriendos-production.up.railway.app/api/auth/residences/${residenceId}`
+          `${BACKEND_URL}/api/auth/residences/${residenceId}`
         );
+
         const residenceData = Array.isArray(response.data)
           ? response.data[0]
           : response.data;
+
         if (!residenceData) {
           throw new Error("No se encontraron datos de la residencia.");
         }
 
-        setPropertyTitle(residenceData.titulo);
-        setPropertyDescription(residenceData.descripcion);
+        setPropertyTitle(residenceData.titulo || "");
+        setPropertyDescription(residenceData.descripcion || "");
         setPropertyPrice(residenceData.precio_mensual?.toString() || "");
         setAddress(residenceData.direccion || "");
+
         setLocation({
-          latitude: residenceData.latitud,
-          longitude: residenceData.longitud,
+          latitude: Number(residenceData.latitud),
+          longitude: Number(residenceData.longitud),
         });
-        setSelectedRentalType(residenceData.tipo_arriendo);
-        setSelectedRentalSector(residenceData.sector);
+
+        setSelectedRentalType(residenceData.tipo_arriendo || null);
+        setSelectedRentalSector(residenceData.sector || null);
+
         setMenCount(residenceData.cantidad_hombres || 0);
         setWomenCount(residenceData.cantidad_mujeres || 0);
         setIndividualRoomsCount(residenceData.cantidad_habitaciones || 0);
@@ -158,7 +171,6 @@ const AdminEditResidence = ({ route, navigation }) => {
           residenceData.cantidad_banos_individuales || 0
         );
         setSharedBathroomsCount(residenceData.cantidad_banos_compartidos || 0);
-
         setLivingRoomsCount(residenceData.cantidad_salas || 0);
         setParkingSpotsCount(residenceData.cantidad_parqueaderos || 0);
 
@@ -174,12 +186,14 @@ const AdminEditResidence = ({ route, navigation }) => {
         // Métodos de pago
         const pagos =
           residenceData.metodos_pago?.split(",").map((p) => p.trim()) || [];
+
         setPaymentMethods({
           cash: pagos.includes("Efectivo"),
           deposit: pagos.includes("Depósito"),
           transfer: pagos.includes("Transferencia"),
-        }); // Comodidades
+        });
 
+        // Comodidades
         const comodidades =
           residenceData.comodidades?.split(",").map((c) => c.trim()) || [];
 
@@ -196,6 +210,7 @@ const AdminEditResidence = ({ route, navigation }) => {
         // Convivencia
         const convivencia =
           residenceData.convivencia?.split(",").map((c) => c.trim()) || [];
+
         setCoexistence({
           petsAllowed: convivencia.includes("Mascotas permitidas"),
           sharedBathroom: convivencia.includes("Baño compartido"),
@@ -204,26 +219,29 @@ const AdminEditResidence = ({ route, navigation }) => {
           sharedLivingRoom: convivencia.includes("Sala compartida"),
           sharedDinigRoom: convivencia.includes("Comedor compartido"),
         });
-        console.log(residenceData);
 
+        // Fotos
         if (residenceData.fotos) {
           let fotosArray = [];
+
           try {
             fotosArray = Array.isArray(residenceData.fotos)
               ? residenceData.fotos
-              : JSON.parse(residenceData.fotos);
+              : JSON.parse(residenceData.fotos || "[]");
           } catch (e) {
-            console.error("Error al parsear las fotos:", e);
+            console.warn("Error al parsear fotos:", e);
+            fotosArray = [];
           }
 
-          if (fotosArray.length > 0) {
+          if (Array.isArray(fotosArray) && fotosArray.length > 0) {
             const formattedImages = fotosArray.map((nombre) => ({
-              uri: `https://backend-arriendos-production.up.railway.app/images/${nombre}`,
+              uri: `${BACKEND_URL}/images/${nombre}`,
               name: nombre,
               isNew: false,
             }));
+
             setImages(formattedImages);
-            setImage(formattedImages[0].uri);
+            setImage(formattedImages[0]?.uri ?? null);
           }
         }
       } catch (error) {
@@ -231,6 +249,7 @@ const AdminEditResidence = ({ route, navigation }) => {
         alert("No se pudo cargar la información de la residencia.");
       }
     };
+
     fetchResidenceData();
   }, [residenceId]);
 
@@ -260,6 +279,7 @@ const AdminEditResidence = ({ route, navigation }) => {
       throw new Error("Tipo o sector faltante");
     }
   };
+
   const handleImages = () => {
     const existingImagesToKeep = images
       .filter((img) => !img.isNew && !imagesToDelete.includes(img.name))
@@ -267,6 +287,14 @@ const AdminEditResidence = ({ route, navigation }) => {
 
     return existingImagesToKeep;
   };
+
+  const getSelectedTenantType = () => {
+    if (tenantType.men && tenantType.women) return "Mixto";
+    if (tenantType.women) return "Mujer";
+    if (tenantType.men) return "Hombre";
+    return "Mixto";
+  };
+
   const prepareFormData = async (existingImagesToKeep) => {
     const formData = new FormData();
 
@@ -316,12 +344,15 @@ const AdminEditResidence = ({ route, navigation }) => {
     formData.append("titulo", propertyTitle);
     formData.append("descripcion", propertyDescription);
     formData.append("direccion", address);
-    formData.append("latitud", location?.latitude ?? 0);
-    formData.append("longitud", location?.longitude ?? 0);
-    formData.append("precio_mensual", parseFloat(propertyPrice) ?? 0);
+
+    formData.append("latitud", Number(location?.latitude ?? 0));
+    formData.append("longitud", Number(location?.longitude ?? 0));
+
+    formData.append("precio_mensual", Number(parseFloat(propertyPrice) ?? 0));
     formData.append("tipo_arriendo", selectedRentalType ?? "Residencia");
     formData.append("sector", selectedRentalSector ?? "Barrio Chino");
     formData.append("tipo_arrendatario", getSelectedTenantType());
+
     formData.append("cantidad_hombres", menCount);
     formData.append("cantidad_mujeres", womenCount);
     formData.append("cantidad_habitaciones", individualRoomsCount);
@@ -332,28 +363,33 @@ const AdminEditResidence = ({ route, navigation }) => {
     formData.append("cantidad_banos_compartidos", sharedBathroomsCount ?? 0);
     formData.append("cantidad_salas", livingRoomsCount);
     formData.append("cantidad_parqueaderos", parkingSpotsCount);
+
     formData.append("metodos_pago", paymentMethodsString);
     formData.append("comodidades", amenitiesString);
     formData.append("convivencia", coexistenceString);
+
     formData.append("existingImages", JSON.stringify(existingImagesToKeep));
 
-    // Obtener tipo MIME de la imagen
     const getMimeType = (uri) => {
-      const extension = uri.split(".").pop().toLowerCase();
+      const extension = uri.split(".").pop()?.toLowerCase();
       if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
       if (extension === "png") return "image/png";
-      return "image/jpeg"; // fallback
+      return "image/jpeg";
     };
 
-    // Procesar imágenes nuevas
     for (const img of images) {
       if (img.isNew) {
         if (Platform.OS === "web") {
           try {
-            const response = await fetch(img.uri);
-            const blob = await response.blob();
-            const file = new File([blob], img.name, { type: blob.type });
-            formData.append("fotos", file);
+            const res = await fetch(img.uri);
+            const blob = await res.blob();
+
+            if (typeof File !== "undefined") {
+              const file = new File([blob], img.name, { type: blob.type });
+              formData.append("fotos", file);
+            } else {
+              console.warn("File no está disponible en este entorno web.");
+            }
           } catch (error) {
             console.error("Error al convertir imagen para web:", error);
           }
@@ -375,10 +411,9 @@ const AdminEditResidence = ({ route, navigation }) => {
     return formData;
   };
 
-  // Método para enviar la petición de actualización
   const sendUpdateRequest = async (formData) => {
     const response = await fetch(
-      `https://backend-arriendos-production.up.railway.app/api/auth/residences/${residenceId}`,
+      `${BACKEND_URL}/api/auth/residences/${residenceId}`,
       {
         method: "PUT",
         headers: { Accept: "application/json" },
@@ -387,15 +422,19 @@ const AdminEditResidence = ({ route, navigation }) => {
     );
 
     if (!response.ok) {
-      const errorResponse = await response.json();
-      throw new Error(`Error en el servidor: ${errorResponse.message}`);
+      let errorMessage = "Error al actualizar";
+      try {
+        const errorResponse = await response.json();
+        errorMessage = errorResponse.message || errorMessage;
+      } catch (e) {}
+
+      throw new Error(errorMessage);
     }
 
     alert("Residencia actualizada con éxito!");
     navigation.navigate("AdminResidencesList");
   };
 
-  // Método principal refactorizado
   const handleEditProperty = async () => {
     try {
       validateInputs();
@@ -417,7 +456,7 @@ const AdminEditResidence = ({ route, navigation }) => {
     let currentLocation = await Location.getCurrentPositionAsync({});
     const { latitude, longitude } = currentLocation.coords;
     setLocation({ latitude, longitude });
-    reverseGeocode(latitude, longitude); // Llama a la función creada
+    reverseGeocode(latitude, longitude);
   };
 
   const handleAddressChange = (text) => {
@@ -438,13 +477,13 @@ const AdminEditResidence = ({ route, navigation }) => {
       return;
     }
 
-    const url = `https://backend-arriendos-production.up.railway.app/geocode?q=${encodeURIComponent(
+    const url = `${BACKEND_URL}/geocode?q=${encodeURIComponent(
       text + ", Riobamba, Ecuador"
     )}`;
+
     try {
       const response = await axios.get(url);
 
-      // Coordenadas aproximadas del cantón Riobamba
       const minLat = -1.8;
       const maxLat = -1.5;
       const minLon = -78.8;
@@ -465,13 +504,8 @@ const AdminEditResidence = ({ route, navigation }) => {
   const toggleTenantType = (key) => {
     setTenantType({ men: false, women: false, mixed: false, [key]: true });
 
-    // Resetear los contadores según el tipo seleccionado
-    if (key === "men") {
-      setWomenCount(0);
-    } else if (key === "women") {
-      setMenCount(0);
-    }
-    // Si es mixto, no se resetea nada
+    if (key === "men") setWomenCount(0);
+    if (key === "women") setMenCount(0);
   };
 
   const togglePaymentMethod = (key) => {
@@ -541,8 +575,7 @@ const AdminEditResidence = ({ route, navigation }) => {
           {
             key: "deposit",
             label: "Pago por depósito",
-            description:
-              "Escoja esta opción si desea que le generen un depósito",
+            description: "Escoja esta opción si desea que le generen un depósito",
           },
           {
             key: "transfer",
@@ -700,6 +733,7 @@ const AdminEditResidence = ({ route, navigation }) => {
     try {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
+
       if (status !== "granted") {
         alert("Se requiere permiso para acceder a la galería");
         return;
@@ -708,7 +742,7 @@ const AdminEditResidence = ({ route, navigation }) => {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
-        selectionLimit: 5 - images.length, // Limita la selección
+        selectionLimit: 5 - images.length,
         quality: 0.5,
       });
 
@@ -735,11 +769,10 @@ const AdminEditResidence = ({ route, navigation }) => {
     }
   };
 
-  const getSelectedTenantType = () => {
-    if (tenantType.men && tenantType.women) return "Mixto";
-    if (tenantType.women) return "Mujer";
-    if (tenantType.men) return "Hombre";
-    return "Mixto"; // Default
+  const safeAnimate = () => {
+    if (Platform.OS !== "web") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
   };
 
   const renderOptions = (
@@ -757,8 +790,8 @@ const AdminEditResidence = ({ route, navigation }) => {
         ]}
         onPress={() => {
           setSelectedOption(option);
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          closeAccordion(false); // Cierra el acordeón
+          safeAnimate();
+          closeAccordion(false);
         }}
       >
         <Text
@@ -773,12 +806,12 @@ const AdminEditResidence = ({ route, navigation }) => {
     ));
 
   const toggleExpandRentalType = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    safeAnimate();
     setExpandedRentalType(!expandedRentalType);
   };
 
   const toggleExpandRentalSector = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    safeAnimate();
     setExpandedRentalSector(!expandedRentalSector);
   };
 
@@ -792,11 +825,14 @@ const AdminEditResidence = ({ route, navigation }) => {
       const response = await axios.get(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`
       );
+
       const addressName = response.data.display_name;
+
       if (!addressName.includes("Riobamba")) {
         alert("Esta ubicación no está en Riobamba");
         return;
       }
+
       setAddress(addressName);
     } catch (error) {
       console.error("Error al obtener dirección:", error);
@@ -829,92 +865,74 @@ const AdminEditResidence = ({ route, navigation }) => {
                 Editar Residencia
               </Text>
 
-              <View style={[styles.menuButtonsWrapper, { width: inputWidth }]}>
-                <View style={styles.menuButtonsContainer}></View>
-              </View>
-
               <View style={styles.carouselContainer}>
-                {(() => {
-                  if (imageUrls.length === 0) {
-                    return (
-                      <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
-                    );
-                  }
+                {imageUrls.length === 0 ? (
+                  <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
+                ) : (
+                  <>
+                    {isWeb ? (
+                      <Image
+                        source={{ uri: imageUrls[currentImageIndex] }}
+                        style={styles.carouselImage}
+                        resizeMode="cover"
+                        onError={(e) =>
+                          console.error(
+                            "Error cargando imagen:",
+                            e.nativeEvent.error
+                          )
+                        }
+                        onClick={() => setIsImageModalVisible(true)}
+                      />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => setIsImageModalVisible(true)}
+                      >
+                        <Image
+                          source={{ uri: imageUrls[currentImageIndex] }}
+                          style={styles.carouselImage}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    )}
 
-                  const imageElement = (
-                    <Image
-                      source={{ uri: imageUrls[currentImageIndex] }}
-                      style={styles.carouselImage}
-                      resizeMode="cover"
-                      onError={(e) =>
-                        console.error(
-                          "Error cargando imagen:",
-                          e.nativeEvent.error
-                        )
-                      }
-                      {...(isWeb
-                        ? { onClick: () => setIsImageModalVisible(true) }
-                        : {})}
-                    />
-                  );
-
-                  return (
-                    <>
-                      {isWeb ? (
-                        imageElement
-                      ) : (
+                    {imageUrls.length > 1 && (
+                      <View style={styles.arrowContainer}>
                         <TouchableOpacity
-                          onPress={() => setIsImageModalVisible(true)}
+                          onPress={() =>
+                            setCurrentImageIndex(
+                              currentImageIndex === 0
+                                ? imageUrls.length - 1
+                                : currentImageIndex - 1
+                            )
+                          }
+                          style={styles.arrowButton}
                         >
-                          {imageElement}
+                          <Ionicons name="chevron-back" size={32} color="#fff" />
                         </TouchableOpacity>
-                      )}
 
-                      {imageUrls.length > 1 && (
-                        <View style={styles.arrowContainer}>
-                          <TouchableOpacity
-                            onPress={() =>
-                              setCurrentImageIndex(
-                                currentImageIndex === 0
-                                  ? imageUrls.length - 1
-                                  : currentImageIndex - 1
-                              )
-                            }
-                            style={styles.arrowButton}
-                          >
-                            <Ionicons
-                              name="chevron-back"
-                              size={32}
-                              color="#fff"
-                            />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            onPress={() =>
-                              setCurrentImageIndex(
-                                currentImageIndex === imageUrls.length - 1
-                                  ? 0
-                                  : currentImageIndex + 1
-                              )
-                            }
-                            style={styles.arrowButton}
-                          >
-                            <Ionicons
-                              name="chevron-forward"
-                              size={32}
-                              color="#fff"
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </>
-                  );
-                })()}
+                        <TouchableOpacity
+                          onPress={() =>
+                            setCurrentImageIndex(
+                              currentImageIndex === imageUrls.length - 1
+                                ? 0
+                                : currentImageIndex + 1
+                            )
+                          }
+                          style={styles.arrowButton}
+                        >
+                          <Ionicons
+                            name="chevron-forward"
+                            size={32}
+                            color="#fff"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </>
+                )}
               </View>
 
-              <TouchableOpacity
-                onPress={pickImage}
-                style={styles.addImageButton}
-              >
+              <TouchableOpacity onPress={pickImage} style={styles.addImageButton}>
                 <Text style={styles.addImageText}>+ Agregar más imágenes</Text>
               </TouchableOpacity>
 
@@ -928,7 +946,7 @@ const AdminEditResidence = ({ route, navigation }) => {
               <TextInput
                 style={styles.input}
                 placeholder="Escriba una pequeña descripción"
-                value={propertyTitle} // Vincula el valor del input al estado
+                value={propertyTitle}
                 onChangeText={setPropertyTitle}
               />
 
@@ -947,6 +965,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                     color="black"
                   />
                 </TouchableOpacity>
+
                 {expandedRentalType && (
                   <View style={styles.accordionContent}>
                     {renderOptions(
@@ -975,6 +994,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                     color="black"
                   />
                 </TouchableOpacity>
+
                 {expandedRentalSector && (
                   <View style={styles.accordionContent}>
                     {renderOptions(
@@ -1001,6 +1021,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                 selected={tenantType}
                 toggleCheckbox={toggleTenantType}
               />
+
               {tenantType.men && (
                 <Counter
                   label="Número de hombres"
@@ -1010,6 +1031,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                   onDecrement={() => setMenCount(Math.max(0, menCount - 1))}
                 />
               )}
+
               {tenantType.women && (
                 <Counter
                   label="Número de mujeres"
@@ -1019,6 +1041,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                   onDecrement={() => setWomenCount(Math.max(0, womenCount - 1))}
                 />
               )}
+
               {tenantType.mixed && (
                 <>
                   <Counter
@@ -1033,9 +1056,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                     subtitle="Escoja la cantidad de mujeres a las que desea arrendar"
                     value={womenCount}
                     onIncrement={() => setWomenCount(womenCount + 1)}
-                    onDecrement={() =>
-                      setWomenCount(Math.max(0, womenCount - 1))
-                    }
+                    onDecrement={() => setWomenCount(Math.max(0, womenCount - 1))}
                   />
                 </>
               )}
@@ -1044,13 +1065,12 @@ const AdminEditResidence = ({ route, navigation }) => {
                 label="Habitaciones individuales"
                 subtitle="Escoja la cantidad de habitaciones con las que cuenta"
                 value={individualRoomsCount}
-                onIncrement={() =>
-                  setIndividualRoomsCount(individualRoomsCount + 1)
-                }
+                onIncrement={() => setIndividualRoomsCount(individualRoomsCount + 1)}
                 onDecrement={() =>
                   setIndividualRoomsCount(Math.max(0, individualRoomsCount - 1))
                 }
               />
+
               <Counter
                 label="Baños individuales"
                 subtitle="Escoja la cantidad de baños individuales con los que cuenta"
@@ -1064,6 +1084,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                   )
                 }
               />
+
               <Counter
                 label="Baños compartidos"
                 subtitle="Escoja la cantidad de baños compartidos con los que cuenta"
@@ -1075,6 +1096,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                   setSharedBathroomsCount(Math.max(0, sharedBathroomsCount - 1))
                 }
               />
+
               <Counter
                 label="Salas"
                 subtitle="Escoja la cantidad de salas con las que cuenta"
@@ -1084,6 +1106,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                   setLivingRoomsCount(Math.max(0, livingRoomsCount - 1))
                 }
               />
+
               <Counter
                 label="Parqueaderos"
                 subtitle="Escoja la cantidad de parqueaderos con los que cuenta"
@@ -1103,9 +1126,13 @@ const AdminEditResidence = ({ route, navigation }) => {
                 multiline
               />
 
-              <TouchableOpacity onPress={getCurrentLocation}>
+              <TouchableOpacity
+                onPress={getCurrentLocation}
+                style={[styles.button, styles.buttonLocation]}
+              >
                 <Text style={styles.buttonText}>Utilizar ubicación actual</Text>
               </TouchableOpacity>
+
               <Text style={styles.label}>Ubicación</Text>
               <View style={{ position: "relative" }}>
                 <TextInput
@@ -1157,13 +1184,6 @@ const AdminEditResidence = ({ route, navigation }) => {
                 </View>
               )}
 
-              <TouchableOpacity
-                onPress={getCurrentLocation}
-                style={[styles.button, styles.buttonLocation]}
-              >
-                <Text style={styles.buttonText}>Utilizar ubicación actual</Text>
-              </TouchableOpacity>
-
               <MapComponent
                 latitude={
                   isNaN(Number(location?.latitude))
@@ -1180,11 +1200,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                     setLocation({ latitude, longitude });
                     reverseGeocode(latitude, longitude);
                   } else {
-                    console.warn(
-                      "Coordenadas inválidas recibidas:",
-                      latitude,
-                      longitude
-                    );
+                    console.warn("Coordenadas inválidas:", latitude, longitude);
                   }
                 }}
               />
@@ -1194,11 +1210,9 @@ const AdminEditResidence = ({ route, navigation }) => {
                 selected={paymentMethods}
                 toggleCheckbox={togglePaymentMethod}
               />
+
               <Text style={styles.label}>Comodidades</Text>
-              <AmenitiesOptions
-                selected={amenities}
-                toggleCheckbox={toggleAmenity}
-              />
+              <AmenitiesOptions selected={amenities} toggleCheckbox={toggleAmenity} />
 
               <Text style={styles.label}>Convivencia</Text>
               <CoexistenceOptions
@@ -1213,6 +1227,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                 >
                   <Text style={styles.buttonText}>Atrás</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={[styles.button, styles.register]}
                   onPress={handleEditProperty}
@@ -1224,6 +1239,7 @@ const AdminEditResidence = ({ route, navigation }) => {
           </View>
         </ScrollView>
       </View>
+
       {isImageModalVisible && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -1248,6 +1264,7 @@ const AdminEditResidence = ({ route, navigation }) => {
                 </View>
               ))}
             </ScrollView>
+
             <Text style={styles.imageCount}>{images.length}/5 imágenes</Text>
           </View>
         </View>

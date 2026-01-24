@@ -31,15 +31,18 @@ import isEqual from "lodash.isequal";
 
 const LandlordViewScreen = ({ navigation }) => {
   const { user } = useContext(AuthContext);
+
   const [inputHeight, setInputHeight] = useState(0);
   const [images, setImages] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [isEditing] = useState(false);
+  const [isEditing] = useState(false); // lo mantengo, pero no lo usas para editar
   const [imageIndices, setImageIndices] = useState({});
   const [loading, setLoading] = useState(true);
+
   const screenWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
+
   const [notifications, setNotifications] = useState([]);
   const [currentNotification, setCurrentNotification] = useState(null);
   const [showNotification, setShowNotification] = useState(false);
@@ -51,7 +54,8 @@ const LandlordViewScreen = ({ navigation }) => {
   const pickImage = async () => {
     const permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
+
+    if (!permissionResult?.granted) {
       alert("Se requiere permiso para acceder a la galería.");
       return;
     }
@@ -64,32 +68,32 @@ const LandlordViewScreen = ({ navigation }) => {
     });
 
     if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+      setImages((prev) => [...prev, result.assets?.[0]?.uri].filter(Boolean));
     }
   };
+
   const fetchDepartments = useCallback(async () => {
+    if (!user?.id) return;
+
     setLoading(true);
     try {
       const response = await axios.get(
-        `https://backend-arriendos-production.up.railway.app/api/auth/departments?userId=${user?.id}`
+        `https://backend-arriendos-production.up.railway.app/api/auth/departments?userId=${user.id}`
       );
-      if (response.data.length > 0) {
-        setDepartments(response.data);
-      } else {
-        setDepartments([]);
-      }
+
+      const data = Array.isArray(response.data) ? response.data : [];
+      setDepartments(data);
     } catch (error) {
       console.error("Error al cargar departamentos:", error);
       alert("No se pudieron cargar los departamentos.");
+      setDepartments([]);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchDepartments();
-    }
+    if (user?.id) fetchDepartments();
   }, [fetchDepartments, user?.id]);
 
   const deleteDepartment = async (departmentId) => {
@@ -97,9 +101,11 @@ const LandlordViewScreen = ({ navigation }) => {
       const response = await axios.delete(
         `https://backend-arriendos-production.up.railway.app/api/auth/departments/${departmentId}`
       );
+
       if (response.status === 200) {
+        // ✅ CORRECCIÓN: tu ID real es id_propiedad, no "id"
         setDepartments((prev) =>
-          prev.filter((department) => department.id !== departmentId)
+          prev.filter((d) => d.id_propiedad !== departmentId)
         );
         alert("Departamento eliminado con éxito.");
         fetchDepartments();
@@ -109,36 +115,44 @@ const LandlordViewScreen = ({ navigation }) => {
       alert("No se pudo eliminar el departamento.");
     }
   };
-  const confirmDelete = (departmentId) => {
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que deseas eliminar este departamento?"
-      );
-      if (confirmed) {
-        deleteDepartment(departmentId);
-      }
-    } else {
-      Alert.alert(
-        "Confirmar eliminación",
-        "¿Estás seguro de que deseas eliminar este departamento?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            style: "destructive",
-            onPress: () => deleteDepartment(departmentId),
-          },
-        ],
-        { cancelable: true }
-      );
+
+  // ✅ Confirmación segura en Web y Mobile
+  const confirmAction = async (message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
+
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Eliminar", style: "destructive", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const confirmDelete = async (departmentId) => {
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que deseas eliminar este departamento?"
+    );
+
+    if (confirmed) {
+      deleteDepartment(departmentId);
     }
   };
+
   const loadNotifications = useCallback(async () => {
     try {
       const unreadNotifications =
         await NotificationService.getUnreadNotificationsLandlord(user?.id);
-      const formattedNotifications = unreadNotifications.map((n) => {
-        const data = JSON.parse(n.data ?? "{}");
+
+      const formattedNotifications = (unreadNotifications ?? []).map((n) => {
+        let data = {};
+        try {
+          data = JSON.parse(n.data ?? "{}");
+        } catch {
+          data = {};
+        }
+
         return {
           ...n,
           title: "Nueva solicitud de arriendo",
@@ -150,8 +164,10 @@ const LandlordViewScreen = ({ navigation }) => {
 
       if (!isEqual(formattedNotifications, notificationsRef.current)) {
         notificationsRef.current = formattedNotifications;
+
         if (mountedRef.current) {
           setNotifications(formattedNotifications);
+
           if (formattedNotifications.length > 0) {
             setCurrentNotification(formattedNotifications[0]);
             setShowNotification(true);
@@ -165,6 +181,7 @@ const LandlordViewScreen = ({ navigation }) => {
       console.error("Error al cargar notificaciones:", error);
     }
   }, [user?.id]);
+
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -176,66 +193,87 @@ const LandlordViewScreen = ({ navigation }) => {
       }
     }, 3000);
   }, [loadNotifications, user?.id]);
+
   const handleNotificationPress = () => {
-    if (currentNotification) {
-      const notificationData = JSON.parse(currentNotification.data ?? "{}");
-      navigation.navigate("RentalRequests", {
-        notificationId: currentNotification.id_notificacion,
-        propertyId: notificationData.propertyId,
-        inquilino: {
-          id: notificationData.tenantId,
-          nombres: notificationData.tenantName?.split(" ")[0] ?? "",
-          apellidos:
-            notificationData.tenantName?.split(" ").slice(1).join(" ") ?? "",
-          email: notificationData.tenantEmail,
-          telefono: notificationData.tenantPhone,
-          cedula: notificationData.tenantCedula,
-        },
-      });
+    if (!currentNotification) return;
+
+    let notificationData = {};
+    try {
+      notificationData = JSON.parse(currentNotification.data ?? "{}");
+    } catch {
+      notificationData = {};
+    }
+
+    navigation.navigate("RentalRequests", {
+      notificationId: currentNotification.id_notificacion,
+      propertyId: notificationData.propertyId,
+      inquilino: {
+        id: notificationData.tenantId,
+        nombres: notificationData.tenantName?.split(" ")[0] ?? "",
+        apellidos: notificationData.tenantName
+          ? notificationData.tenantName.split(" ").slice(1).join(" ")
+          : "",
+        email: notificationData.tenantEmail,
+        telefono: notificationData.tenantPhone,
+        cedula: notificationData.tenantCedula,
+      },
+    });
+
+    setShowNotification(false);
+  };
+
+  const handleNotificationClose = () => {
+    if (!currentNotification) return;
+
+    NotificationService.markAsRead(currentNotification.id_notificacion);
+
+    const updated = notifications.filter(
+      (n) => n.id_notificacion !== currentNotification.id_notificacion
+    );
+
+    setNotifications(updated);
+    notificationsRef.current = updated;
+
+    if (updated.length > 0) {
+      setCurrentNotification(updated[0]);
+      setShowNotification(true);
+    } else {
+      setCurrentNotification(null);
       setShowNotification(false);
     }
   };
 
-  const handleNotificationClose = () => {
-    if (currentNotification) {
-      NotificationService.markAsRead(currentNotification.id_notificacion);
-      const updatedNotifications = notifications.filter(
-        (n) => n.id_notificacion !== currentNotification.id_notificacion
-      );
-      setNotifications(updatedNotifications);
-      notificationsRef.current = updatedNotifications;
-      if (updatedNotifications.length > 0) {
-        setCurrentNotification(updatedNotifications[0]);
-        setShowNotification(true);
-      } else {
-        setCurrentNotification(null);
-        setShowNotification(false);
-      }
-    }
-  };
   useEffect(() => {
-    if (user?.id) {
-      loadNotifications();
-      const timeoutId = setTimeout(() => {
-        startPolling();
-      }, 2000);
+    if (!user?.id) return;
 
-      return () => {
-        clearTimeout(timeoutId);
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-        }
-      };
-    }
+    loadNotifications();
+    const timeoutId = setTimeout(() => startPolling(), 2000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+    };
   }, [user?.id, loadNotifications, startPolling]);
+
   useEffect(() => {
     return () => {
       mountedRef.current = false;
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, []);
+
+  // ✅ parse seguro de fotos (evita crash por JSON.parse)
+  const safeParseFotos = (fotos) => {
+    if (!fotos) return [];
+    if (Array.isArray(fotos)) return fotos;
+
+    try {
+      const parsed = JSON.parse(fotos);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -252,7 +290,7 @@ const LandlordViewScreen = ({ navigation }) => {
 
       <View style={isWeb ? styles.webContainer : styles.flex}>
         {loading ? (
-          <Text>Cargando...</Text> // Indicador de carga
+          <Text>Cargando...</Text>
         ) : departments.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyMessage}>Departamento sin registrar</Text>
@@ -271,60 +309,56 @@ const LandlordViewScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={true}
           >
             {/* ENCABEZADO */}
-    <View style={{
-      height: 70,
-      width: "100%",
-      flexDirection: "row"
-    }}>
-      <View style={{ flex: 1, backgroundColor: "#B80000" }} />   
-      <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
-      <View style={{ flex: 1, backgroundColor: "#006400" }} />
-    </View>
+            <View
+              style={{
+                height: 70,
+                width: "100%",
+                flexDirection: "row",
+              }}
+            >
+              <View style={{ flex: 1, backgroundColor: "#B80000" }} />
+              <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
+              <View style={{ flex: 1, backgroundColor: "#006400" }} />
+            </View>
+
             <Header isLoggedIn={true} />
 
-            {departments.map((department, index) => (
-              <View key={index} style={styles.container}>
-                <View style={styles.departmentContent}></View>
-                <View style={[styles.form, { width: inputWidth }]}>
-                  {isEditing && (
-                    <TouchableOpacity
-                      onPress={pickImage}
-                      style={[styles.imagePicker, { width: inputWidth }]}
-                    >
-                      {images.length > 0 ? (
-                        <Image
-                          source={{ uri: images[0] }} // Muestra solo la primera imagen
-                          style={styles.imagePreview}
-                          onError={() => {
-                            console.error("Error al cargar la imagen");
-                          }}
-                        />
-                      ) : (
-                        <Text style={styles.imagePlaceholder}>
-                          + Agregar imagen
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
+            {departments.map((department, index) => {
+              const fotosArray = safeParseFotos(department?.fotos);
+              const imageUrls = fotosArray.map(
+                (foto) =>
+                  `https://backend-arriendos-production.up.railway.app/images/${foto}`
+              );
+              const currentIndex = imageIndices[index] || 0;
 
-                  <View style={[styles.carouselWrapper, { width: inputWidth }]}>
-                    <View style={styles.carouselContainer}>
-                      {(() => {
-                        const fotosArray = JSON.parse(department.fotos || "[]");
-                        const imageUrls = fotosArray.map(
-                          (foto) => `https://backend-arriendos-production.up.railway.app/images/${foto}`
-                        );
-                        const currentIndex = imageIndices[index] || 0;
+              return (
+                <View key={department?.id_propiedad ?? index} style={styles.container}>
+                  <View style={styles.departmentContent} />
+                  <View style={[styles.form, { width: inputWidth }]}>
+                    {isEditing && (
+                      <TouchableOpacity
+                        onPress={pickImage}
+                        style={[styles.imagePicker, { width: inputWidth }]}
+                      >
+                        {images.length > 0 ? (
+                          <Image
+                            source={{ uri: images[0] }}
+                            style={styles.imagePreview}
+                            onError={() => console.error("Error al cargar la imagen")}
+                          />
+                        ) : (
+                          <Text style={styles.imagePlaceholder}>
+                            + Agregar imagen
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    )}
 
-                        if (imageUrls.length === 0) {
-                          return (
-                            <Text style={styles.imagePlaceholder}>
-                              Sin imágenes
-                            </Text>
-                          );
-                        }
-
-                        return (
+                    <View style={[styles.carouselWrapper, { width: inputWidth }]}>
+                      <View style={styles.carouselContainer}>
+                        {imageUrls.length === 0 ? (
+                          <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
+                        ) : (
                           <>
                             <Image
                               source={{ uri: imageUrls[currentIndex] }}
@@ -351,6 +385,7 @@ const LandlordViewScreen = ({ navigation }) => {
                                     color="#fff"
                                   />
                                 </TouchableOpacity>
+
                                 <TouchableOpacity
                                   onPress={() =>
                                     setImageIndices((prev) => ({
@@ -372,125 +407,126 @@ const LandlordViewScreen = ({ navigation }) => {
                               </View>
                             )}
                           </>
-                        );
-                      })()}
+                        )}
+                      </View>
                     </View>
-                  </View>
 
-                  <View key={index} style={styles.container}>
-                    <Text style={styles.title}>Departamento {index + 1}</Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        styles.textAreaAuto,
-                        { height: Math.max(40, inputHeight) },
-                      ]}
-                      value={department?.descripcion || ""}
-                      multiline
-                      editable={false}
-                      scrollEnabled={false}
-                      onContentSizeChange={(event) =>
-                        setInputHeight(event.nativeEvent.contentSize.height)
+                    <View style={styles.container}>
+                      <Text style={styles.title}>
+                        Departamento {index + 1}
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.input,
+                          styles.textAreaAuto,
+                          { height: Math.max(40, inputHeight) },
+                        ]}
+                        value={department?.descripcion || ""}
+                        multiline
+                        editable={false}
+                        scrollEnabled={false}
+                        onContentSizeChange={(event) =>
+                          setInputHeight(event.nativeEvent.contentSize.height)
+                        }
+                      />
+                    </View>
+
+                    <View style={styles.iconContainer}>
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate("RentalRequests")}
+                      >
+                        <Icon name="users" size={24} color="#000" />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.detailsRow}>
+                      <View style={styles.detailsColumn}>
+                        <Text style={styles.detailsText}>
+                          $ {department?.precio_mensual || 0} al mes
+                        </Text>
+                        <Text style={styles.detailsText}>
+                          {department?.tipo_arrendatario || ""}
+                        </Text>
+                        <Text style={styles.detailsText}>
+                          {department?.cantidad_habitaciones || 0} Habitación(es)
+                        </Text>
+                        <Text style={styles.detailsText}>
+                          {department?.cantidad_banos_individuales || 0} Baño(s)
+                          Individual(es)
+                        </Text>
+                        <Text style={styles.detailsText}>
+                          {department?.cantidad_salas || 0} Sala(s)
+                        </Text>
+                        <Text style={styles.detailsText}>
+                          {department?.cantidad_parqueaderos || 0} Parqueadero(s)
+                        </Text>
+                      </View>
+
+                      <View style={styles.detailsColumn}>
+                        <Text style={styles.detailsText}>Forma de pago</Text>
+                        <Text style={styles.detailsSubText}>
+                          {department?.metodos_pago || ""}
+                        </Text>
+
+                        <Text style={styles.detailsText}>Comodidades</Text>
+                        <Text style={styles.detailsSubText}>
+                          {department?.comodidades || ""}
+                        </Text>
+
+                        <Text style={styles.detailsText}>Convivencia</Text>
+                        <Text style={styles.detailsSubText}>
+                          {department?.convivencia || ""}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailsText}>
+                      <Text style={styles.label}>Ubicación</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={department?.direccion || ""}
+                        editable={false}
+                        placeholder="Dirección no disponible"
+                      />
+                    </View>
+
+                    <MapComponent
+                      latitude={
+                        isNaN(Number(department?.latitud))
+                          ? -1.66355
+                          : Number(department?.latitud)
+                      }
+                      longitude={
+                        isNaN(Number(department?.longitud))
+                          ? -78.654646
+                          : Number(department?.longitud)
                       }
                     />
-                  </View>
 
-                  <View style={styles.iconContainer}>
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate("RentalRequests")}
-                    >
-                      <Icon name="users" size={24} color="#000" />
-                    </TouchableOpacity>
-                  </View>
+                    <View style={styles.buttonRow}>
+                      <TouchableOpacity
+                        style={[styles.button, styles.back]}
+                        onPress={() => confirmDelete(department.id_propiedad)}
+                      >
+                        <Text style={styles.buttonText}>Eliminar</Text>
+                      </TouchableOpacity>
 
-                  <View style={styles.detailsRow}>
-                    <View style={styles.detailsColumn}>
-                      <Text style={styles.detailsText}>
-                        $ {department?.precio_mensual || 0} al mes
-                      </Text>
-                      <Text style={styles.detailsText}>
-                        {department?.tipo_arrendatario || ""}
-                      </Text>
-                      <Text style={styles.detailsText}>
-                        {department?.cantidad_habitaciones || 0} Habitación(es)
-                      </Text>
-                      <Text style={styles.detailsText}>
-                        {department?.cantidad_banos_individuales || 0} Baño(s)
-                        Individual(es)
-                      </Text>
-                      <Text style={styles.detailsText}>
-                        {department?.cantidad_salas || 0} Sala(s)
-                      </Text>
-                      <Text style={styles.detailsText}>
-                        {department?.cantidad_parqueaderos || 0} Parqueadero(s)
-                      </Text>
+                      <TouchableOpacity
+                        style={[styles.button, styles.register]}
+                        onPress={() => {
+                          navigation.navigate("EditDepartment", {
+                            departmentId: department.id_propiedad,
+                          });
+                        }}
+                      >
+                        <Text style={styles.buttonText}>Editar</Text>
+                      </TouchableOpacity>
                     </View>
-
-                    <View style={styles.detailsColumn}>
-                      <Text style={styles.detailsText}>Forma de pago</Text>
-                      <Text style={styles.detailsSubText}>
-                        {department?.metodos_pago || ""}
-                      </Text>
-                      <Text style={styles.detailsText}>Comodidades</Text>
-                      <Text style={styles.detailsSubText}>
-                        {department?.comodidades || ""}
-                      </Text>
-                      <Text style={styles.detailsText}>Convivencia</Text>
-                      <Text style={styles.detailsSubText}>
-                        {department?.convivencia || ""}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.detailsText}>
-                    <Text style={styles.label}>Ubicación</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={department?.direccion || ""}
-                      editable={false}
-                      placeholder="Dirección no disponible"
-                    />
-                  </View>
-
-                  <MapComponent
-                    latitude={
-                      isNaN(Number(department?.latitud))
-                        ? -1.66355
-                        : Number(department?.latitud)
-                    }
-                    longitude={
-                      isNaN(Number(department?.longitud))
-                        ? -78.654646
-                        : Number(department?.longitud)
-                    }
-                  />
-
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={[styles.button, styles.back]}
-                      onPress={() => confirmDelete(department.id_propiedad)}
-                    >
-                      <Text style={styles.buttonText}>Eliminar</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.button, styles.register]}
-                      onPress={() => {
-                        console.log("department:", department);
-                        console.log(
-                          "Navegando a edición con ID:",
-                          department.id_propiedad
-                        );
-                        navigation.navigate("EditDepartment", {
-                          departmentId: department.id_propiedad,
-                        });
-                      }}
-                    >
-                      <Text style={styles.buttonText}>Editar</Text>
-                    </TouchableOpacity>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
+
             <TouchableOpacity
               style={styles.addDeptButton}
               onPress={() => navigation.navigate("RegisterProperty")}

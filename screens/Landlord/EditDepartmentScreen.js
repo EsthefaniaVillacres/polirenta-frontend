@@ -95,39 +95,35 @@ const EditDepartmentScreen = ({ route, navigation }) => {
 
   //Metodos
 
-  const handleDeleteImage = (index) => {
+  const confirmAction = async (message) => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      return window.confirm(message);
+    }
+
+    return new Promise((resolve) => {
+      Alert.alert("Confirmación", message, [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(false) },
+        { text: "Eliminar", style: "destructive", onPress: () => resolve(true) },
+      ]);
+    });
+  };
+
+  const handleDeleteImage = async (index) => {
     const imageToDelete = images[index];
 
-    if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "¿Estás seguro de que deseas eliminar esta imagen?"
-      );
-      if (confirmed) {
-        setImages((prev) => prev.filter((_, i) => i !== index));
-        if (!imageToDelete.isNew) {
-          setImagesToDelete((prev) => [...prev, imageToDelete.name]);
-        }
-      }
-    } else {
-      Alert.alert(
-        "Eliminar imagen",
-        "¿Estás seguro de que deseas eliminar esta imagen?",
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Eliminar",
-            onPress: () => {
-              setImages((prev) => prev.filter((_, i) => i !== index));
-              if (!imageToDelete.isNew) {
-                setImagesToDelete((prev) => [...prev, imageToDelete.name]);
-              }
-            },
-            style: "destructive",
-          },
-        ]
-      );
+    const confirmed = await confirmAction(
+      "¿Estás seguro de que deseas eliminar esta imagen?"
+    );
+
+    if (!confirmed) return;
+
+    setImages((prev) => prev.filter((_, i) => i !== index));
+
+    if (imageToDelete && !imageToDelete.isNew) {
+      setImagesToDelete((prev) => [...prev, imageToDelete.name]);
     }
   };
+
 
   useEffect(() => {
     const fetchDepartmentData = async () => {
@@ -206,24 +202,27 @@ const EditDepartmentScreen = ({ route, navigation }) => {
 
         if (departmentData.fotos) {
           let fotosArray = [];
+
           try {
             fotosArray = Array.isArray(departmentData.fotos)
               ? departmentData.fotos
-              : JSON.parse(departmentData.fotos);
+              : JSON.parse(departmentData.fotos || "[]");
           } catch (e) {
-            console.error("Error al parsear las fotos:", e);
+            console.warn("Error al parsear fotos:", e);
+            fotosArray = [];
           }
 
-          if (fotosArray.length > 0) {
+          if (Array.isArray(fotosArray) && fotosArray.length > 0) {
             const formattedImages = fotosArray.map((nombre) => ({
               uri: `https://backend-arriendos-production.up.railway.app/images/${nombre}`,
               name: nombre,
               isNew: false,
             }));
             setImages(formattedImages);
-            setImage(formattedImages[0].uri);
+            setImage(formattedImages[0]?.uri ?? null);
           }
         }
+
       } catch (error) {
         console.error("Error al obtener los datos del departamento:", error);
         alert("No se pudo cargar la información deldepartamento.");
@@ -336,16 +335,40 @@ const EditDepartmentScreen = ({ route, navigation }) => {
     formData.append("convivencia", coexistenceString);
     formData.append("existingImages", JSON.stringify(existingImagesToKeep));
 
+    const getMimeType = (uri) => {
+      const extension = uri.split(".").pop()?.toLowerCase();
+      if (extension === "png") return "image/png";
+      if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+      return "image/jpeg";
+    };
+
     for (const img of images) {
       if (img.isNew) {
-        const type = img.uri.endsWith(".png") ? "image/png" : "image/jpeg";
-        formData.append("fotos", {
-          uri: img.uri,
-          name: img.name,
-          type,
-        });
+        if (Platform.OS === "web") {
+          try {
+            const res = await fetch(img.uri);
+            const blob = await res.blob();
+
+            if (typeof File !== "undefined") {
+              const file = new File([blob], img.name, { type: blob.type });
+              formData.append("fotos", file);
+            } else {
+              console.warn("File no disponible en este entorno web");
+            }
+          } catch (error) {
+            console.error("Error convirtiendo imagen en web:", error);
+          }
+        } else {
+          const type = getMimeType(img.uri);
+          formData.append("fotos", {
+            uri: img.uri,
+            name: img.name,
+            type,
+          });
+        }
       }
     }
+
 
     if (imagesToDelete.length > 0) {
       formData.append("imagesToDelete", JSON.stringify(imagesToDelete));
@@ -733,7 +756,9 @@ const EditDepartmentScreen = ({ route, navigation }) => {
         ]}
         onPress={() => {
           setSelectedOption(option);
-          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          if (Platform.OS !== "web") {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          }
           closeAccordion(false); // Cierra el acordeón
         }}
       >
@@ -749,14 +774,19 @@ const EditDepartmentScreen = ({ route, navigation }) => {
     ));
 
   const toggleExpandRentalType = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (Platform.OS !== "web") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     setExpandedRentalType(!expandedRentalType);
   };
 
   const toggleExpandRentalSector = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (Platform.OS !== "web") {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
     setExpandedRentalSector(!expandedRentalSector);
   };
+
 
   const handlePriceChange = (text) => {
     const numericText = text.replace(/[^0-9.]/g, "");
@@ -785,7 +815,7 @@ const EditDepartmentScreen = ({ route, navigation }) => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       keyboardVerticalOffset={100}
     >
-      
+
 
       <View style={isWeb ? styles.webContainer : styles.flex}>
         <ScrollView
@@ -795,15 +825,15 @@ const EditDepartmentScreen = ({ route, navigation }) => {
           showsVerticalScrollIndicator={true}
         >
           {/* ENCABEZADO */}
-    <View style={{
-      height: 70,
-      width: "100%",
-      flexDirection: "row"
-    }}>
-      <View style={{ flex: 1, backgroundColor: "#B80000" }} />   
-      <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
-      <View style={{ flex: 1, backgroundColor: "#006400" }} />
-    </View>
+          <View style={{
+            height: 70,
+            width: "100%",
+            flexDirection: "row"
+          }}>
+            <View style={{ flex: 1, backgroundColor: "#B80000" }} />
+            <View style={{ flex: 1, backgroundColor: "#ffffff" }} />
+            <View style={{ flex: 1, backgroundColor: "#006400" }} />
+          </View>
           <View style={styles.container}>
             <Header isLoggedIn={true} />
 

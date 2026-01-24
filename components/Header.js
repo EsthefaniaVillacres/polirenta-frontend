@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext } from "react";
 import {
   View,
   Text,
@@ -17,17 +17,10 @@ export default function Header({ isLoggedIn = false }) {
   const route = useRoute();
   const { user, setUser } = useContext(AuthContext);
 
-  // ✅ Protegemos el nombre de pantalla para que NO rompa en SSR/hydration
-  const currentScreen = useMemo(() => {
-    try {
-      return route?.name ?? "Unknown";
-    } catch (e) {
-      return "Unknown";
-    }
-  }, [route]);
+  const currentScreen = route?.name ?? "";
 
   // 🔥 Modo admin según la pantalla actual
-  const isAdminScreen = currentScreen?.startsWith("Admin") ?? false;
+  const isAdminScreen = currentScreen.startsWith("Admin");
 
   // Solo mostramos botones de login/register en Home, sin sesión y NO en admin
   const showAuthButtons =
@@ -42,7 +35,7 @@ export default function Header({ isLoggedIn = false }) {
 
   // ✅ Confirmación compatible Web + Android + iOS (sin romper SSR)
   const confirmAction = async (message) => {
-    // Web: SOLO si existe window (evita error en Vercel SSR)
+    // Web (solo si existe window)
     if (Platform.OS === "web" && typeof window !== "undefined") {
       return window.confirm(message);
     }
@@ -63,8 +56,6 @@ export default function Header({ isLoggedIn = false }) {
 
     if (confirmed) {
       setUser(null);
-      // opcional: te mando al Home
-      navigation.navigate("Home");
     }
   };
 
@@ -79,7 +70,7 @@ export default function Header({ isLoggedIn = false }) {
     // Resto de casos
     if (!user) {
       navigation.navigate("Home");
-    } else if (user?.role === "landlord") {
+    } else if (user.role === "landlord") {
       navigation.navigate("RegisterProperty");
     } else {
       navigation.navigate("Tenant");

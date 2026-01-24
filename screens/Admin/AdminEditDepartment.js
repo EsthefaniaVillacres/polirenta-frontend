@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useMemo } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -23,21 +23,20 @@ import { AuthContext } from "../../context/AuthContext";
 
 const AdminEditDepartment = ({ route, navigation }) => {
   const { user } = useContext(AuthContext);
+  const { departmentId } = route.params;
 
-  // ✅ Protegemos params (en web a veces viene undefined si recargas)
-  const departmentId = route?.params?.departmentId;
-
-  //Variables
   const [tenantType, setTenantType] = useState({
     men: false,
     women: false,
     mixed: false,
   });
+
   const [paymentMethods, setPaymentMethods] = useState({
     cash: false,
     deposit: false,
     transfer: false,
   });
+
   const [amenities, setAmenities] = useState({
     electricShower: false,
     showerHeater: false,
@@ -47,6 +46,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
     water: false,
     light: false,
   });
+
   const [coexistence, setCoexistence] = useState({
     petsAllowed: false,
     sharedBathroom: false,
@@ -56,6 +56,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
     sharedDinigRoom: false,
   });
 
+  // eslint-disable-next-line no-unused-vars
   const [image, setImage] = useState(null);
 
   const [location, setLocation] = useState(null);
@@ -80,12 +81,11 @@ const AdminEditDepartment = ({ route, navigation }) => {
   const [images, setImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const imageUrls = useMemo(() => images.map((foto) => foto.uri), [images]);
+  const imageUrls = images.map((foto) => foto.uri);
 
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [imagesToDelete, setImagesToDelete] = useState([]);
 
-  //Dimesiones y estilos
   const screenWidth = Dimensions.get("window").width;
   const isWeb = Platform.OS === "web";
   const inputWidth = isWeb ? Math.min(screenWidth * 0.95, 600) : "100%";
@@ -113,13 +113,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
     });
   };
 
-  const safeAnimate = () => {
-    // LayoutAnimation en Web puede fallar / no hacer nada
-    if (Platform.OS !== "web") {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
-  };
-
   const handleDeleteImage = async (index) => {
     const imageToDelete = images[index];
 
@@ -131,15 +124,12 @@ const AdminEditDepartment = ({ route, navigation }) => {
 
     setImages((prev) => prev.filter((_, i) => i !== index));
 
-    if (imageToDelete && !imageToDelete.isNew) {
+    if (!imageToDelete.isNew) {
       setImagesToDelete((prev) => [...prev, imageToDelete.name]);
     }
   };
 
   useEffect(() => {
-    // ✅ Si no hay departmentId, no intentes cargar nada
-    if (!departmentId) return;
-
     const fetchDepartmentData = async () => {
       try {
         const response = await axios.get(
@@ -150,17 +140,17 @@ const AdminEditDepartment = ({ route, navigation }) => {
           ? response.data[0]
           : response.data;
 
-        setPropertyTitle(departmentData.titulo ?? "");
-        setPropertyDescription(departmentData.descripcion ?? "");
-        setPropertyPrice(departmentData.precio_mensual?.toString() ?? "");
-        setAddress(departmentData.direccion ?? "");
+        setPropertyTitle(departmentData.titulo);
+        setPropertyDescription(departmentData.descripcion);
+        setPropertyPrice(departmentData.precio_mensual?.toString() || "");
+        setAddress(departmentData.direccion || "");
         setLocation({
           latitude: departmentData.latitud,
           longitude: departmentData.longitud,
         });
 
-        setSelectedRentalType(departmentData.tipo_arriendo ?? null);
-        setSelectedRentalSector(departmentData.sector ?? null);
+        setSelectedRentalType(departmentData.tipo_arriendo);
+        setSelectedRentalSector(departmentData.sector);
 
         setMenCount(departmentData.cantidad_hombres || 0);
         setWomenCount(departmentData.cantidad_mujeres || 0);
@@ -169,6 +159,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
           departmentData.cantidad_banos_individuales || 0
         );
         setSharedBathroomsCount(departmentData.cantidad_banos_compartidos || 0);
+
         setLivingRoomsCount(departmentData.cantidad_salas || 0);
         setParkingSpotsCount(departmentData.cantidad_parqueaderos || 0);
 
@@ -193,6 +184,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
         // Comodidades
         const comodidades =
           departmentData.comodidades?.split(",").map((c) => c.trim()) || [];
+
         setAmenities({
           electricShower: comodidades.includes("Decha eléctrica"),
           showerHeater: comodidades.includes("Ducha con calefón"),
@@ -231,9 +223,8 @@ const AdminEditDepartment = ({ route, navigation }) => {
               name: nombre,
               isNew: false,
             }));
-
             setImages(formattedImages);
-            setImage(formattedImages[0]?.uri ?? null);
+            setImage(formattedImages[0].uri);
           }
         }
       } catch (error) {
@@ -359,7 +350,7 @@ const AdminEditDepartment = ({ route, navigation }) => {
 
     for (const img of images) {
       if (img.isNew) {
-        const type = img.uri?.endsWith(".png") ? "image/png" : "image/jpeg";
+        const type = img.uri.endsWith(".png") ? "image/png" : "image/jpeg";
         formData.append("fotos", {
           uri: img.uri,
           name: img.name,
@@ -484,6 +475,24 @@ const AdminEditDepartment = ({ route, navigation }) => {
     setCoexistence((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const Counter = ({ label, subtitle, value, onIncrement, onDecrement }) => (
+    <View style={styles.counterContainer}>
+      <View style={styles.labelContainer}>
+        <Text style={styles.label}>{label}</Text>
+        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      </View>
+      <View style={styles.counterControls}>
+        <TouchableOpacity onPress={onIncrement} style={styles.counterButton}>
+          <Text style={styles.counterButtonText}>+</Text>
+        </TouchableOpacity>
+        <Text style={styles.counterValue}>{value}</Text>
+        <TouchableOpacity onPress={onDecrement} style={styles.counterButton}>
+          <Text style={styles.counterButtonText}>−</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   const pickImage = async () => {
     try {
       const { status } =
@@ -523,46 +532,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
     }
   };
 
-  const renderOptions = (
-    options,
-    selectedOption,
-    setSelectedOption,
-    closeAccordion
-  ) =>
-    options.map((option) => (
-      <TouchableOpacity
-        key={option}
-        style={[
-          styles.optionButton,
-          selectedOption === option && styles.optionSelected,
-        ]}
-        onPress={() => {
-          setSelectedOption(option);
-          safeAnimate();
-          closeAccordion(false);
-        }}
-      >
-        <Text
-          style={[
-            styles.optionText,
-            selectedOption === option && styles.optionTextSelected,
-          ]}
-        >
-          {option}
-        </Text>
-      </TouchableOpacity>
-    ));
-
-  const toggleExpandRentalType = () => {
-    safeAnimate();
-    setExpandedRentalType(!expandedRentalType);
-  };
-
-  const toggleExpandRentalSector = () => {
-    safeAnimate();
-    setExpandedRentalSector(!expandedRentalSector);
-  };
-
   const handlePriceChange = (text) => {
     const numericText = text.replace(/[^0-9.]/g, "");
     setPropertyPrice(numericText);
@@ -583,18 +552,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
       console.error("Error al obtener dirección:", error);
     }
   };
-
-  // ✅ Si entran a esta pantalla sin ID (por refresh en web), no rompe
-  if (!departmentId) {
-    return (
-      <View style={{ flex: 1, padding: 20, justifyContent: "center" }}>
-        <Header isLoggedIn={true} />
-        <Text style={{ textAlign: "center" }}>
-          No se encontró el ID del departamento para editar.
-        </Text>
-      </View>
-    );
-  }
 
   return (
     <KeyboardAvoidingView
@@ -623,77 +580,88 @@ const AdminEditDepartment = ({ route, navigation }) => {
               </Text>
 
               <View style={styles.carouselContainer}>
-                {imageUrls.length === 0 ? (
-                  <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
-                ) : (
-                  <>
-                    {isWeb ? (
-                      <Image
-                        source={{ uri: imageUrls[currentImageIndex] }}
-                        style={styles.carouselImage}
-                        resizeMode="cover"
-                        onError={(e) =>
-                          console.error(
-                            "Error cargando imagen:",
-                            e.nativeEvent.error
-                          )
-                        }
-                        onClick={() => setIsImageModalVisible(true)}
-                      />
-                    ) : (
-                      <TouchableOpacity
-                        onPress={() => setIsImageModalVisible(true)}
-                      >
-                        <Image
-                          source={{ uri: imageUrls[currentImageIndex] }}
-                          style={styles.carouselImage}
-                          resizeMode="cover"
-                        />
-                      </TouchableOpacity>
-                    )}
+                {(() => {
+                  if (imageUrls.length === 0) {
+                    return (
+                      <Text style={styles.imagePlaceholder}>Sin imágenes</Text>
+                    );
+                  }
 
-                    {imageUrls.length > 1 && (
-                      <View style={styles.arrowContainer}>
-                        <TouchableOpacity
-                          onPress={() =>
-                            setCurrentImageIndex(
-                              currentImageIndex === 0
-                                ? imageUrls.length - 1
-                                : currentImageIndex - 1
-                            )
-                          }
-                          style={styles.arrowButton}
-                        >
-                          <Ionicons
-                            name="chevron-back"
-                            size={32}
-                            color="#fff"
-                          />
-                        </TouchableOpacity>
+                  const imageElement = (
+                    <Image
+                      source={{ uri: imageUrls[currentImageIndex] }}
+                      style={styles.carouselImage}
+                      resizeMode="cover"
+                      onError={(e) =>
+                        console.error(
+                          "Error cargando imagen:",
+                          e.nativeEvent.error
+                        )
+                      }
+                      {...(isWeb
+                        ? { onClick: () => setIsImageModalVisible(true) }
+                        : {})}
+                    />
+                  );
 
+                  return (
+                    <>
+                      {isWeb ? (
+                        imageElement
+                      ) : (
                         <TouchableOpacity
-                          onPress={() =>
-                            setCurrentImageIndex(
-                              currentImageIndex === imageUrls.length - 1
-                                ? 0
-                                : currentImageIndex + 1
-                            )
-                          }
-                          style={styles.arrowButton}
+                          onPress={() => setIsImageModalVisible(true)}
                         >
-                          <Ionicons
-                            name="chevron-forward"
-                            size={32}
-                            color="#fff"
-                          />
+                          {imageElement}
                         </TouchableOpacity>
-                      </View>
-                    )}
-                  </>
-                )}
+                      )}
+
+                      {imageUrls.length > 1 && (
+                        <View style={styles.arrowContainer}>
+                          <TouchableOpacity
+                            onPress={() =>
+                              setCurrentImageIndex(
+                                currentImageIndex === 0
+                                  ? imageUrls.length - 1
+                                  : currentImageIndex - 1
+                              )
+                            }
+                            style={styles.arrowButton}
+                          >
+                            <Ionicons
+                              name="chevron-back"
+                              size={32}
+                              color="#fff"
+                            />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() =>
+                              setCurrentImageIndex(
+                                currentImageIndex === imageUrls.length - 1
+                                  ? 0
+                                  : currentImageIndex + 1
+                              )
+                            }
+                            style={styles.arrowButton}
+                          >
+                            <Ionicons
+                              name="chevron-forward"
+                              size={32}
+                              color="#fff"
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
               </View>
 
-              <TouchableOpacity onPress={pickImage} style={styles.addImageButton}>
+              <TouchableOpacity
+                onPress={pickImage}
+                style={styles.addImageButton}
+              >
                 <Text style={styles.addImageText}>+ Agregar más imágenes</Text>
               </TouchableOpacity>
 
@@ -710,63 +678,6 @@ const AdminEditDepartment = ({ route, navigation }) => {
                 value={propertyTitle}
                 onChangeText={setPropertyTitle}
               />
-
-              <Text style={styles.label}>Tipo de arriendo</Text>
-              <View style={styles.accordionContainer}>
-                <TouchableOpacity
-                  style={styles.accordionHeader}
-                  onPress={toggleExpandRentalType}
-                >
-                  <Text style={styles.accordionTitle}>
-                    Elija el tipo de arriendo: {selectedRentalType || "Ninguno"}
-                  </Text>
-                  <Ionicons
-                    name={expandedRentalType ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color="black"
-                  />
-                </TouchableOpacity>
-
-                {expandedRentalType && (
-                  <View style={styles.accordionContent}>
-                    {renderOptions(
-                      rentalType,
-                      selectedRentalType,
-                      setSelectedRentalType,
-                      setExpandedRentalType
-                    )}
-                  </View>
-                )}
-              </View>
-
-              <Text style={styles.label}>Sector del arriendo</Text>
-              <View style={styles.accordionContainer}>
-                <TouchableOpacity
-                  style={styles.accordionHeader}
-                  onPress={toggleExpandRentalSector}
-                >
-                  <Text style={styles.accordionTitle}>
-                    Elija el sector del arriendo:{" "}
-                    {selectedRentalSector || "Ninguno"}
-                  </Text>
-                  <Ionicons
-                    name={expandedRentalSector ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color="black"
-                  />
-                </TouchableOpacity>
-
-                {expandedRentalSector && (
-                  <View style={styles.accordionContent}>
-                    {renderOptions(
-                      rentalSector,
-                      selectedRentalSector,
-                      setSelectedRentalSector,
-                      setExpandedRentalSector
-                    )}
-                  </View>
-                )}
-              </View>
 
               <Text style={styles.label}>Precio</Text>
               <TextInput
@@ -787,97 +698,11 @@ const AdminEditDepartment = ({ route, navigation }) => {
               />
 
               <TouchableOpacity
-                onPress={getCurrentLocation}
-                style={[styles.button, styles.buttonLocation]}
+                onPress={handleEditProperty}
+                style={[styles.button, styles.register]}
               >
-                <Text style={styles.buttonText}>Utilizar ubicación actual</Text>
+                <Text style={styles.buttonText}>Guardar Cambios</Text>
               </TouchableOpacity>
-
-              <Text style={styles.label}>Ubicación</Text>
-              <View style={{ position: "relative" }}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Escriba la dirección"
-                  value={address}
-                  onChangeText={handleAddressChange}
-                />
-                {address?.length > 0 && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setAddress("");
-                      setSuggestions([]);
-                    }}
-                    style={styles.clearButton}
-                  >
-                    <Text style={styles.clearButtonText}>✕</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {suggestions.length > 0 && (
-                <View
-                  style={{
-                    backgroundColor: "#fff",
-                    borderWidth: 1,
-                    borderColor: "#ccc",
-                    borderRadius: 8,
-                    marginTop: 5,
-                    paddingVertical: 4,
-                  }}
-                >
-                  {suggestions.map((item, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => {
-                        setAddress(item.display_name);
-                        setLocation({
-                          latitude: parseFloat(item.lat),
-                          longitude: parseFloat(item.lon),
-                        });
-                        setSuggestions([]);
-                      }}
-                      style={{ paddingVertical: 8, paddingHorizontal: 10 }}
-                    >
-                      <Text style={{ fontSize: 14 }}>{item.display_name}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <MapComponent
-                latitude={
-                  isNaN(Number(location?.latitude))
-                    ? -1.66355
-                    : Number(location?.latitude)
-                }
-                longitude={
-                  isNaN(Number(location?.longitude))
-                    ? -78.654646
-                    : Number(location?.longitude)
-                }
-                onLocationSelect={({ latitude, longitude }) => {
-                  if (!isNaN(latitude) && !isNaN(longitude)) {
-                    setLocation({ latitude, longitude });
-                    reverseGeocode(latitude, longitude);
-                  }
-                }}
-              />
-
-              <View style={styles.buttonRow}>
-                <TouchableOpacity
-                  style={[styles.button, styles.back]}
-                  onPress={() => navigation.goBack()}
-                >
-                  <Text style={styles.buttonText}>Atrás</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.button, styles.register]}
-                  onPress={handleEditProperty}
-                >
-                  <Text style={styles.buttonText}>Guardar Cambios</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         </ScrollView>
